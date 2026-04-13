@@ -89,6 +89,18 @@ const Utils = {
     if (data.usuarioNombre) return data.usuarioNombre;
     if (data.usuarioId && map && map[data.usuarioId]) return map[data.usuarioId];
     return "—";
+  },
+
+  _esc(str) {
+    if (!str) return "";
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  },
+
+  _escAttr(str) {
+    if (!str) return "";
+    return str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
   }
 };
 
@@ -566,14 +578,14 @@ const Catalogo = {
 
         html += `
           <tr>
-            <td><strong>${this._esc(data.titulo)}</strong></td>
-            <td>${this._esc(data.autor)}</td>
-            <td>${this._esc(data.genero || "—")}</td>
+            <td><strong>${Utils._esc(data.titulo)}</strong></td>
+            <td>${Utils._esc(data.autor)}</td>
+            <td>${Utils._esc(data.genero || "—")}</td>
             <td>${data.ejemplares || 0}</td>
             <td>${badgeHTML}</td>
             <td>
               <button class="btn btn-sm" onclick="Catalogo.editar('${id}')" title="Editar">&#9998;</button>
-              <button class="btn btn-sm btn-danger" onclick="Catalogo.eliminar('${id}', '${this._escAttr(data.titulo)}')" title="Eliminar">&#10005;</button>
+              <button class="btn btn-sm btn-danger" onclick="Catalogo.eliminar('${id}', '${Utils._escAttr(data.titulo)}')" title="Eliminar">&#10005;</button>
             </td>
           </tr>`;
       });
@@ -744,18 +756,6 @@ const Catalogo = {
     const btnGuardar = modal.querySelector(".btn-primary");
     btnGuardar.textContent = "Guardar libro";
     btnGuardar.onclick = () => Catalogo.agregar();
-  },
-
-  _esc(str) {
-    if (!str) return "";
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
-  },
-
-  _escAttr(str) {
-    if (!str) return "";
-    return str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
   }
 };
 
@@ -810,19 +810,19 @@ const Usuarios = {
         // Cuenta de acceso
         const tieneCuenta = data.authUid ? true : false;
         const cuentaHTML = tieneCuenta
-          ? `<span style="color:var(--verde);font-size:12px">${this._esc(data.email || "—")}</span>`
+          ? `<span style="color:var(--verde);font-size:12px">${Utils._esc(data.email || "—")}</span>`
           : `<span style="color:var(--texto-muted);font-size:12px">Sin cuenta</span>`;
 
         html += `
           <tr>
-            <td><strong>${this._esc(data.nombre)}</strong></td>
-            <td><span class="badge ${tipoBadge}">${this._esc(data.tipo)}</span></td>
-            <td>${this._esc(data.dni || "—")}</td>
+            <td><strong>${Utils._esc(data.nombre)}</strong></td>
+            <td><span class="badge ${tipoBadge}">${Utils._esc(data.tipo)}</span></td>
+            <td>${Utils._esc(data.dni || "—")}</td>
             <td>${cuentaHTML}</td>
             <td>${activos > 0 ? `<span class="badge badge-amarillo">${activos}</span>` : "0"}</td>
             <td>
               <button class="btn btn-sm" onclick="Usuarios.editar('${id}')" title="Editar">&#9998;</button>
-              <button class="btn btn-sm btn-danger" onclick="Usuarios.eliminar('${id}', '${this._escAttr(data.nombre)}')" title="Eliminar">&#10005;</button>
+              <button class="btn btn-sm btn-danger" onclick="Usuarios.eliminar('${id}', '${Utils._escAttr(data.nombre)}')" title="Eliminar">&#10005;</button>
             </td>
           </tr>`;
       });
@@ -1165,18 +1165,6 @@ const Usuarios = {
     const q = query(collection(db, this.coleccion), orderBy("nombre", "asc"));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-  },
-
-  _esc(str) {
-    if (!str) return "";
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
-  },
-
-  _escAttr(str) {
-    if (!str) return "";
-    return str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
   }
 };
 
@@ -1220,8 +1208,8 @@ const Prestamos = {
 
         html += `
           <tr>
-            <td><strong>${this._esc(nombreLibro)}</strong></td>
-            <td>${this._esc(nombreUsu)}</td>
+            <td><strong>${Utils._esc(nombreLibro)}</strong></td>
+            <td>${Utils._esc(nombreUsu)}</td>
             <td>${Utils.formatDate(data.fechaPrestamo)}</td>
             <td>${Utils.formatDate(data.fechaDevolucion)}</td>
             <td><span class="badge ${badge}">${estado}</span></td>
@@ -1256,7 +1244,7 @@ const Prestamos = {
       selectLibro.innerHTML = '<option value="">— Seleccionar libro —</option>';
       libros.forEach(libro => {
         if (libro.disponibles > 0) {
-          selectLibro.innerHTML += `<option value="${libro.id}" data-titulo="${this._escAttr(libro.titulo)}">${libro.titulo} (${libro.disponibles} disp.)</option>`;
+          selectLibro.innerHTML += `<option value="${libro.id}" data-titulo="${Utils._escAttr(libro.titulo)}">${libro.titulo} (${libro.disponibles} disp.)</option>`;
         }
       });
 
@@ -1265,7 +1253,7 @@ const Prestamos = {
       selectUsuario.innerHTML = '<option value="">— Seleccionar usuario —</option>';
       usuarios.forEach(usu => {
         const dniStr = usu.dni ? ` - DNI: ${usu.dni}` : "";
-        selectUsuario.innerHTML += `<option value="${usu.id}" data-nombre="${this._escAttr(usu.nombre)}">${usu.nombre} (${usu.tipo}${dniStr})</option>`;
+        selectUsuario.innerHTML += `<option value="${usu.id}" data-nombre="${Utils._escAttr(usu.nombre)}">${usu.nombre} (${usu.tipo}${dniStr})</option>`;
       });
 
       const hoy = Utils.today();
@@ -1357,18 +1345,6 @@ const Prestamos = {
     } finally {
       Utils.loading(false);
     }
-  },
-
-  _esc(str) {
-    if (!str) return "";
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
-  },
-
-  _escAttr(str) {
-    if (!str) return "";
-    return str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
   }
 };
 
@@ -1409,8 +1385,8 @@ const Vencidos = {
 
           html += `
             <tr>
-              <td><strong>${this._esc(nombreLibro)}</strong></td>
-              <td>${this._esc(nombreUsu)}</td>
+              <td><strong>${Utils._esc(nombreLibro)}</strong></td>
+              <td>${Utils._esc(nombreUsu)}</td>
               <td>${Utils.formatDate(data.fechaDevolucion)}</td>
               <td><span class="badge badge-rojo">${diasAtraso} dias</span></td>
               <td>
@@ -1461,13 +1437,6 @@ const Vencidos = {
     } catch (error) {
       console.error("Error al actualizar badge vencidos:", error);
     }
-  },
-
-  _esc(str) {
-    if (!str) return "";
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
   }
 };
 
@@ -1546,8 +1515,8 @@ const Dashboard = {
 
           html += `
             <tr>
-              <td><strong>${this._esc(nombreLibro)}</strong></td>
-              <td>${this._esc(nombreUsu)}</td>
+              <td><strong>${Utils._esc(nombreLibro)}</strong></td>
+              <td>${Utils._esc(nombreUsu)}</td>
               <td>${Utils.formatDate(p.fechaDevolucion)}</td>
               <td>${badge}</td>
             </tr>`;
@@ -1558,13 +1527,6 @@ const Dashboard = {
     } catch (error) {
       console.error("Error al cargar dashboard:", error);
     }
-  },
-
-  _esc(str) {
-    if (!str) return "";
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
   }
 };
 
@@ -1689,7 +1651,7 @@ const Reportes = {
         </div>
         <div class="stat-card">
           <div class="label">Usuario mas activo</div>
-          <div class="value" style="font-size:18px">${this._esc(topUsuario.nombre)}</div>
+          <div class="value" style="font-size:18px">${Utils._esc(topUsuario.nombre)}</div>
           <div class="trend">${topUsuario.cantidad} prestamos</div>
         </div>
       `;
@@ -1704,8 +1666,8 @@ const Reportes = {
           const medalla = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
           rankingHTML += `
             <tr>
-              <td>${medalla} <strong>${this._esc(libro.titulo)}</strong></td>
-              <td>${this._esc(libro.autor)}</td>
+              <td>${medalla} <strong>${Utils._esc(libro.titulo)}</strong></td>
+              <td>${Utils._esc(libro.autor)}</td>
               <td><span class="badge badge-azul">${libro.count}</span></td>
             </tr>`;
         });
@@ -1717,13 +1679,6 @@ const Reportes = {
       statsContainer.innerHTML = `<p style="color:#B42318;padding:1rem">Error al cargar estadisticas.</p>`;
       tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:2rem;color:#B42318">Error.</td></tr>`;
     }
-  },
-
-  _esc(str) {
-    if (!str) return "";
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
   }
 };
 

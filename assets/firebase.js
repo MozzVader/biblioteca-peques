@@ -27,67 +27,6 @@ const auth = getAuth(app);
 const secondaryApp  = initializeApp(firebaseConfig, "Secondary");
 const secondaryAuth = getAuth(secondaryApp);
 
-// ── Referencias a colecciones ─────────────────
-const colLibros    = collection(db, 'libros');
-const colUsuarios  = collection(db, 'usuarios');
-const colPrestamos = collection(db, 'prestamos');
-
-// ── AUTH ──────────────────────────────────────
-async function fbLogin(email, password) {
-  const cred = await signInWithEmailAndPassword(auth, email, password);
-  return cred.user;
-}
-
-async function fbLogout() {
-  await signOut(auth);
-}
-
-function fbOnAuthChange(callback) {
-  onAuthStateChanged(auth, callback);
-}
-
-// ── LIBROS ────────────────────────────────────
-async function fbGetLibros() {
-  const snap = await getDocs(query(colLibros, orderBy('titulo')));
-  return snap.docs.map(d => ({ _id: d.id, ...d.data() }));
-}
-async function fbAddLibro(libro) {
-  const ref = await addDoc(colLibros, libro);
-  return ref.id;
-}
-async function fbDeleteLibro(id) {
-  await deleteDoc(doc(db, 'libros', id));
-}
-async function fbUpdateLibro(id, datos) {
-  await updateDoc(doc(db, 'libros', id), datos);
-}
-
-// ── USUARIOS ──────────────────────────────────
-async function fbGetUsuarios() {
-  const snap = await getDocs(query(colUsuarios, orderBy('nombre')));
-  return snap.docs.map(d => ({ _id: d.id, ...d.data() }));
-}
-async function fbAddUsuario(usuario) {
-  const ref = await addDoc(colUsuarios, usuario);
-  return ref.id;
-}
-async function fbDeleteUsuario(id) {
-  await deleteDoc(doc(db, 'usuarios', id));
-}
-
-// ── PRÉSTAMOS ─────────────────────────────────
-async function fbGetPrestamos() {
-  const snap = await getDocs(query(colPrestamos, orderBy('fechaPrestamo')));
-  return snap.docs.map(d => ({ _id: d.id, ...d.data() }));
-}
-async function fbAddPrestamo(prestamo) {
-  const ref = await addDoc(colPrestamos, prestamo);
-  return ref.id;
-}
-async function fbUpdatePrestamo(id, datos) {
-  await updateDoc(doc(db, 'prestamos', id), datos);
-}
-
 export {
   // Instancias
   db, auth, secondaryAuth,
@@ -96,10 +35,5 @@ export {
   updateDoc, deleteDoc, query, where, orderBy, limit,
   serverTimestamp, increment,
   // Auth SDK directo (usado por app.js Auth module)
-  signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
-  // Helpers
-  fbLogin, fbLogout, fbOnAuthChange,
-  fbGetLibros,    fbAddLibro,    fbDeleteLibro,  fbUpdateLibro,
-  fbGetUsuarios,  fbAddUsuario,  fbDeleteUsuario,
-  fbGetPrestamos, fbAddPrestamo, fbUpdatePrestamo
+  signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged
 };
