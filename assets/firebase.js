@@ -4,7 +4,7 @@
 
 import { initializeApp }                               from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
 import { getFirestore, collection, getDocs, getDoc,
-         addDoc, deleteDoc, doc, updateDoc,
+         addDoc, setDoc, deleteDoc, doc, updateDoc,
          query, orderBy, where, limit,
          serverTimestamp, increment }                  from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword,
@@ -88,9 +88,11 @@ export {
   // Instancias
   db, auth,
   // SDK directo (usado por app.js para queries avanzadas)
-  collection, doc, addDoc, getDoc, getDocs,
+  collection, doc, addDoc, setDoc, getDoc, getDocs,
   updateDoc, deleteDoc, query, where, orderBy, limit,
   serverTimestamp, increment,
+  // Auth SDK directo (usado por app.js Auth module)
+  signInWithEmailAndPassword, signOut, onAuthStateChanged,
   // Helpers
   fbLogin, fbLogout, fbOnAuthChange,
   fbGetLibros,    fbAddLibro,    fbDeleteLibro,  fbUpdateLibro,

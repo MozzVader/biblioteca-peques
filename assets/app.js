@@ -5,10 +5,10 @@
 
 import {
   auth, db,
-  signInWithEmailAndPassword, signOut, onAuthStateChanged,
   collection, doc, addDoc, setDoc, getDoc, getDocs,
   updateDoc, deleteDoc, query, where, orderBy, limit,
-  onSnapshot, serverTimestamp, increment, writeBatch
+  serverTimestamp, increment,
+  signInWithEmailAndPassword, signOut, onAuthStateChanged
 } from "./firebase.js";
 
 // ══════════════════════════════════════════════════════════════
