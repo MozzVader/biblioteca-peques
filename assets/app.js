@@ -9,7 +9,7 @@ import {
   collection, doc, addDoc, setDoc, getDoc, getDocs,
   updateDoc, deleteDoc, query, where, orderBy, limit,
   onSnapshot, serverTimestamp, increment, writeBatch
-} from "./firebase-config.js";
+} from "./firebase.js";
 
 // ══════════════════════════════════════════════════════════════
 //  UTILIDADES
