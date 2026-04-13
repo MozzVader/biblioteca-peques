@@ -124,6 +124,11 @@ const Utils = {
   initSortableHeaders(tableId, onSort) {
     const table = document.getElementById(tableId);
     if (!table) return;
+
+    // Evitar registrar listeners duplicados en cada render
+    if (table._sortableInitialized) return;
+    table._sortableInitialized = true;
+
     table.querySelectorAll('th.sortable').forEach(th => {
       th.style.cursor = 'pointer';
       th.addEventListener('click', () => {
