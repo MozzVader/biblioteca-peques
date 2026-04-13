@@ -16,18 +16,64 @@
     <div class="login-card">
       <div class="login-logo">📚</div>
       <h1 class="login-title">BiblioEscolar</h1>
-      <p class="login-subtitle">Ingresá para continuar</p>
-      <div id="login-error" class="alert alert-danger"></div>
-      <div class="form-group">
-        <label>Usuario</label>
-        <input class="form-input" id="login-usuario" type="email" placeholder="usuario@correo.com">
+      <p class="login-subtitle" id="login-subtitle-text">Ingresá para continuar</p>
+
+      <!-- FORMULARIO LOGIN -->
+      <div id="form-login">
+        <div id="login-error" class="alert alert-danger"></div>
+        <div class="form-group">
+          <label>Usuario</label>
+          <input class="form-input" id="login-usuario" type="email" placeholder="usuario@correo.com">
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label>Contraseña</label>
+          <input class="form-input" id="login-password" type="password" placeholder="••••••">
+        </div>
+        <button class="btn btn-primary btn-block" style="margin-top:1.25rem" onclick="Auth.login()">Ingresar</button>
+        <p class="login-hint">
+          ¿No tenés cuenta? <a href="#" onclick="Auth.mostrarRegistro(); return false;" style="color:var(--verde);font-weight:500">Registrate acá</a>
+        </p>
       </div>
-      <div class="form-group" style="margin-top:12px">
-        <label>Contraseña</label>
-        <input class="form-input" id="login-password" type="password" placeholder="••••••">
+
+      <!-- FORMULARIO REGISTRO -->
+      <div id="form-registro" style="display:none">
+        <div id="registro-error" class="alert alert-danger"></div>
+        <div class="form-group">
+          <label>Nombre completo *</label>
+          <input class="form-input" id="reg-nombre" type="text" placeholder="Juan Pérez">
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label>Email *</label>
+          <input class="form-input" id="reg-email" type="email" placeholder="juan@correo.com">
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label>Contraseña * <span style="font-weight:400;font-size:11px;color:var(--texto-muted)">(mínimo 6 caracteres)</span></label>
+          <input class="form-input" id="reg-password" type="password" placeholder="••••••">
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label>Repetir contraseña *</label>
+          <input class="form-input" id="reg-password2" type="password" placeholder="••••••">
+        </div>
+        <div class="form-row" style="margin-top:12px;gap:8px">
+          <div class="form-group" style="flex:1">
+            <label>Tipo</label>
+            <select class="form-select" id="reg-tipo">
+              <option>Alumno</option>
+              <option>Docente</option>
+              <option>Administrativo</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1">
+            <label>Curso / Rol</label>
+            <input class="form-input" id="reg-curso" type="text" placeholder="Ej: 3° B">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block" style="margin-top:1.25rem" onclick="Auth.registrar()">Crear cuenta</button>
+        <p class="login-hint">
+          ¿Ya tenés cuenta? <a href="#" onclick="Auth.mostrarLogin(); return false;" style="color:var(--verde);font-weight:500">Ingresá acá</a>
+        </p>
       </div>
-      <button class="btn btn-primary btn-block" style="margin-top:1.25rem" onclick="Auth.login()">Ingresar</button>
-      <p class="login-hint">Usá el email y contraseña creados en Firebase</p>
+
     </div>
   </div>
 
@@ -278,9 +324,11 @@
             </div>
             <div id="alert-config" class="alert alert-success" style="margin-top:1rem"></div>
             <div class="config-hint">
-              <p>💡 <strong>Conectado con Firebase:</strong> Los datos se almacenan en Firestore y se
-              sincronizan automaticamente. Para crear el primer usuario de login, andá a
-              <strong>Authentication</strong> en Firebase Console y creá una cuenta con email y contrasena.</p>
+              <p>💡 <strong>Registro de usuarios:</strong> Los usuarios pueden crear su propia cuenta
+              desde la pantalla de login (boton "Registrate"). Al registrarse, se les asigna
+              rol <strong>"Solo lectura"</strong> por defecto. Desde esta seccion podes cambiar
+              el rol a <strong>Bibliotecario</strong> o <strong>Ayudante</strong> segun corresponda.
+              El primer usuario (administrador) debe crearse desde Firebase Console.</p>
             </div>
             <!-- Gestion de roles -->
             <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--gris-200)">
