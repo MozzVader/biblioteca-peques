@@ -249,7 +249,7 @@
           <div id="alert-usuario" class="alert alert-success"></div>
           <div class="search-bar">
             <input type="text" id="buscar-usuario" placeholder="Buscar por nombre, DNI o tipo..." oninput="Usuarios.render()">
-            <button class="btn btn-primary" onclick="UI.abrirModal('modal-usuario')">+ Agregar usuario</button>
+            <button class="btn btn-primary" onclick="Usuarios._prepararModalAgregar(); UI.abrirModal('modal-usuario')">+ Agregar usuario</button>
           </div>
           <div class="table-card">
             <table>
