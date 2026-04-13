@@ -4,7 +4,7 @@
 // ══════════════════════════════════════════════════════════════
 
 import {
-  auth, db,
+  auth, db, secondaryAuth,
   collection, doc, addDoc, setDoc, getDoc, getDocs,
   updateDoc, deleteDoc, query, where, orderBy, limit,
   serverTimestamp, increment,
@@ -16,43 +16,28 @@ import {
 // ══════════════════════════════════════════════════════════════
 
 const Utils = {
-  /**
-   * Formatea una fecha de Firebase Timestamp o Date a formato legible (dd/mm/yyyy)
-   */
   formatDate(fecha) {
     if (!fecha) return "—";
     const d = fecha.toDate ? fecha.toDate() : new Date(fecha);
     return d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
   },
 
-  /**
-   * Formatea una fecha para input type="date" (yyyy-mm-dd)
-   */
   toInputDate(fecha) {
     if (!fecha) return "";
     const d = fecha.toDate ? fecha.toDate() : new Date(fecha);
     return d.toISOString().split("T")[0];
   },
 
-  /**
-   * Devuelve la fecha de hoy como string yyyy-mm-dd
-   */
   today() {
     return new Date().toISOString().split("T")[0];
   },
 
-  /**
-   * Suma dias a una fecha y devuelve Date
-   */
   addDays(date, days) {
     const d = new Date(date);
     d.setDate(d.getDate() + days);
     return d;
   },
 
-  /**
-   * Calcula los dias de diferencia entre dos fechas (puede ser negativo)
-   */
   daysDiff(fechaFin) {
     const fin = fechaFin.toDate ? fechaFin.toDate() : new Date(fechaFin);
     const hoy = new Date();
@@ -61,9 +46,6 @@ const Utils = {
     return Math.ceil((hoy - fin) / (1000 * 60 * 60 * 24));
   },
 
-  /**
-   * Muestra u oculta el overlay de carga
-   */
   loading(show) {
     const el = document.getElementById("loading-overlay");
     if (show) {
@@ -73,16 +55,10 @@ const Utils = {
     }
   },
 
-  /**
-   * Genera un ID corto para documentos
-   */
   generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
   },
 
-  /**
-   * Convierte cualquier tipo de fecha (Timestamp, Date, string) a Date
-   */
   toDate(fecha) {
     if (!fecha) return null;
     if (fecha.toDate) return fecha.toDate();
@@ -91,11 +67,6 @@ const Utils = {
     return new Date(fecha);
   },
 
-  /**
-   * Carga todos los libros y usuarios y devuelve maps {id: nombre}
-   * Se usa como cache para resolver nombres en prestamos que no
-   * tengan libroTitulo / usuarioNombre guardados.
-   */
   async cargarNombres() {
     const [librosSnap, usuariosSnap] = await Promise.all([
       getDocs(collection(db, "libros")),
@@ -108,18 +79,12 @@ const Utils = {
     return { mapLibros, mapUsuarios };
   },
 
-  /**
-   * Resuelve el nombre de un libro desde el map, con fallback
-   */
   nombreLibro(data, map) {
     if (data.libroTitulo) return data.libroTitulo;
     if (data.libroId && map && map[data.libroId]) return map[data.libroId];
     return "—";
   },
 
-  /**
-   * Resuelve el nombre de un usuario desde el map, con fallback
-   */
   nombreUsuario(data, map) {
     if (data.usuarioNombre) return data.usuarioNombre;
     if (data.usuarioId && map && map[data.usuarioId]) return map[data.usuarioId];
@@ -133,21 +98,13 @@ const Utils = {
 // ══════════════════════════════════════════════════════════════
 
 const UI = {
-  /**
-   * Navega entre secciones de la SPA
-   */
   navigate(el, seccion) {
-    // Desactivar nav-item activo
     document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
-    // Activar el que se clickeo
     if (el) el.classList.add("active");
-    // Ocultar todas las secciones
     document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
-    // Mostrar la seccion correspondiente
     const target = document.getElementById("sec-" + seccion);
     if (target) target.classList.add("active");
 
-    // Disparar render de la seccion si corresponde
     switch (seccion) {
       case "inicio":    Dashboard.render(); break;
       case "catalogo":  Catalogo.render(); break;
@@ -159,35 +116,21 @@ const UI = {
     }
   },
 
-  /**
-   * Abre un modal por su ID
-   */
   abrirModal(id) {
     const modal = document.getElementById(id);
     if (modal) {
       modal.classList.add("open");
-      // Si es el modal de prestamo, cargar selects
       if (id === "modal-prestamo") {
         Prestamos.cargarSelects();
       }
     }
   },
 
-  /**
-   * Cierra un modal por su ID
-   */
   cerrarModal(id) {
     const modal = document.getElementById(id);
     if (modal) modal.classList.remove("open");
   },
 
-  /**
-   * Muestra una alerta temporal
-   * @param {string} id - ID del elemento alerta
-   * @param {string} mensaje - Texto a mostrar
-   * @param {string} tipo - "success" o "danger"
-   * @param {number} duracion - Milisegundos antes de ocultar
-   */
   mostrarAlerta(id, mensaje, tipo = "success", duracion = 3000) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -204,83 +147,87 @@ const UI = {
 //  ROLES — Sistema de permisos
 // ══════════════════════════════════════════════════════════════
 //  Roles disponibles:
-//    "bibliotecario" — acceso total (admin)
-//    "ayudante"       — puede ver catalogo, registrar/Devolver
-//                       prestamos y ver reportes. No puede
-//                       gestionar usuarios ni configuracion.
-//    "solo_lectura"   — solo puede ver el catalogo y reportes.
+//    "administrativo"  — acceso total (admin). Puede gestionar
+//                        usuarios, libros, prestamos, config, etc.
+//    "docente"         — ve inicio, catalogo, prestamos, vencidos,
+//                        reportes. Puede registrar/devolver prestamos.
+//                        No puede gestionar usuarios ni config.
+//    "alumno"          — ve inicio, catalogo, reportes.
+//                        Solo lectura en todo momento.
 //
-//  Se guardan en Firestore:
-//    Coleccion: "roles"
-//    Documento:  { UID del usuario en Auth }
-//    Campo:      { rol: "bibliotecario" | "ayudante" | "solo_lectura" }
-//
-//  Si un usuario no tiene documento en "roles", se le asigna
-//  "bibliotecario" por defecto (primer usuario o compatibilidad).
+//  El rol se determina por el campo "tipo" del documento del
+//  usuario en la coleccion "usuarios" de Firestore.
+//  Se busca por authUid (el UID de Firebase Auth).
 // ══════════════════════════════════════════════════════════════
 
 const Roles = {
-  // Rol actual del usuario logueado
-  actual: "bibliotecario",
+  // Rol actual del usuario logueado (en minusculas)
+  actual: "administrativo",
+  // Firestore document ID del usuario actual
+  usuarioDocId: null,
+  // Nombre del usuario actual
+  usuarioNombre: null,
 
-  // Definicion de permisos por seccion
-  // true = acceso completo, false = oculto del sidebar
+  // Permisos de visibilidad en el sidebar
   permisosSidebar: {
-    bibliotecario: { inicio: true, catalogo: true, prestamos: true, usuarios: true, vencidos: true, reportes: true, config: true },
-    ayudante:      { inicio: true, catalogo: true, prestamos: true, usuarios: false, vencidos: true, reportes: true, config: false },
-    solo_lectura:  { inicio: true, catalogo: true, prestamos: false, usuarios: false, vencidos: false, reportes: true, config: false }
+    administrativo: { inicio: true, catalogo: true, prestamos: true, usuarios: true, vencidos: true, reportes: true, config: true },
+    docente:        { inicio: true, catalogo: true, prestamos: true, usuarios: false, vencidos: true, reportes: true, config: false },
+    alumno:         { inicio: true, catalogo: true, prestamos: false, usuarios: false, vencidos: false, reportes: true, config: false }
   },
 
-  // Que acciones puede hacer cada rol (escritura)
+  // Permisos de escritura (acciones)
   permisosAccion: {
-    bibliotecario: { agregarLibro: true, editarLibro: true, eliminarLibro: true, agregarUsuario: true, editarUsuario: true, eliminarUsuario: true, registrarPrestamo: true, devolverPrestamo: true, guardarConfig: true },
-    ayudante:      { agregarLibro: false, editarLibro: false, eliminarLibro: false, agregarUsuario: false, editarUsuario: false, eliminarUsuario: false, registrarPrestamo: true, devolverPrestamo: true, guardarConfig: false },
-    solo_lectura:  { agregarLibro: false, editarLibro: false, eliminarLibro: false, agregarUsuario: false, editarUsuario: false, eliminarUsuario: false, registrarPrestamo: false, devolverPrestamo: false, guardarConfig: false }
+    administrativo: { agregarLibro: true, editarLibro: true, eliminarLibro: true, agregarUsuario: true, editarUsuario: true, eliminarUsuario: true, registrarPrestamo: true, devolverPrestamo: true, guardarConfig: true },
+    docente:        { agregarLibro: false, editarLibro: false, eliminarLibro: false, agregarUsuario: false, editarUsuario: false, eliminarUsuario: false, registrarPrestamo: true, devolverPrestamo: true, guardarConfig: false },
+    alumno:         { agregarLibro: false, editarLibro: false, eliminarLibro: false, agregarUsuario: false, editarUsuario: false, eliminarUsuario: false, registrarPrestamo: false, devolverPrestamo: false, guardarConfig: false }
   },
 
-  // Etiquetas legibles
+  // Etiquetas legibles para mostrar en la UI
   etiquetas: {
-    bibliotecario: "Bibliotecario",
-    ayudante: "Ayudante",
-    solo_lectura: "Solo lectura"
+    administrativo: "Administrativo",
+    docente:        "Docente",
+    alumno:         "Alumno"
   },
 
   /**
-   * Carga el rol del usuario desde Firestore.
-   * Si no tiene documento, le asigna "bibliotecario" por defecto.
+   * Carga el rol del usuario buscando su documento en "usuarios"
+   * por el campo authUid (que coincide con el UID de Firebase Auth).
+   * Si no encuentra documento (ej: primer usuario legacy),
+   * asigna "administrativo" por defecto.
    */
-  async cargar(uid) {
+  async cargar(authUid) {
     try {
-      const docSnap = await getDoc(doc(db, "roles", uid));
-      if (docSnap.exists()) {
-        this.actual = docSnap.data().rol || "bibliotecario";
+      const q = query(collection(db, "usuarios"), where("authUid", "==", authUid));
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const docSnap = snapshot.docs[0];
+        const data = docSnap.data();
+        // El campo "tipo" define el rol
+        this.actual = (data.tipo || "alumno").toLowerCase();
+        this.usuarioDocId = docSnap.id;
+        this.usuarioNombre = data.nombre || "";
       } else {
-        // Primer usuario: asignar bibliotecario por defecto
-        this.actual = "bibliotecario";
+        // Sin documento en "usuarios" → administrativo por defecto
+        // (compatibilidad con usuarios creados antes de este sistema)
+        this.actual = "administrativo";
+        this.usuarioDocId = null;
+        this.usuarioNombre = null;
       }
     } catch (error) {
       console.error("Error al cargar rol:", error);
-      this.actual = "bibliotecario";
+      this.actual = "administrativo";
     }
   },
 
-  /**
-   * Verifica si el rol actual tiene permiso para una accion
-   */
   puede(accion) {
     return this.permisosAccion[this.actual]?.[accion] ?? false;
   },
 
-  /**
-   * Verifica si el rol actual puede ver una seccion
-   */
   puedeVer(seccion) {
     return this.permisosSidebar[this.actual]?.[seccion] ?? false;
   },
 
-  /**
-   * Aplica los permisos al sidebar: oculta secciones no permitidas
-   */
   aplicarSidebar() {
     document.querySelectorAll(".nav-item[data-sec]").forEach(item => {
       const sec = item.dataset.sec;
@@ -290,7 +237,6 @@ const Roles = {
         item.style.display = "";
       }
     });
-    // Ocultar divisores si todos los items de esa seccion estan ocultos
     document.querySelectorAll(".nav-section").forEach(section => {
       const items = section.querySelectorAll(".nav-item");
       const visibleItems = Array.from(items).filter(i => i.style.display !== "none");
@@ -309,25 +255,20 @@ const Roles = {
     });
   },
 
-  /**
-   * Aplica permisos a botones de accion (agregar, editar, etc)
-   * Se llama despues de cada render de tabla
-   */
   aplicarBotones(seccion) {
     switch (seccion) {
-      case "catalogo":
-        // Ocultar boton "Agregar libro" si no tiene permiso
+      case "catalogo": {
         const btnAgregarLibro = document.querySelector("#sec-catalogo .search-bar .btn-primary");
         if (btnAgregarLibro) btnAgregarLibro.style.display = this.puede("agregarLibro") ? "" : "none";
-        // Ocultar botones de editar/eliminar en cada fila
         document.querySelectorAll("#tabla-catalogo .btn-sm, #tabla-catalogo .btn-danger").forEach(btn => {
           if (btn.textContent.trim() === "" || btn.title === "Editar" || btn.title === "Eliminar") {
             btn.style.display = this.puede("editarLibro") ? "" : "none";
           }
         });
         break;
+      }
 
-      case "usuarios":
+      case "usuarios": {
         const btnAgregarUsu = document.querySelector("#sec-usuarios .search-bar .btn-primary");
         if (btnAgregarUsu) btnAgregarUsu.style.display = this.puede("agregarUsuario") ? "" : "none";
         document.querySelectorAll("#tabla-usuarios .btn-sm, #tabla-usuarios .btn-danger").forEach(btn => {
@@ -336,38 +277,17 @@ const Roles = {
           }
         });
         break;
+      }
 
-      case "prestamos":
+      case "prestamos": {
         const btnAgregarPres = document.querySelector("#sec-prestamos .toolbar .btn-primary");
         if (btnAgregarPres) btnAgregarPres.style.display = this.puede("registrarPrestamo") ? "" : "none";
-        // Ocultar botones "Devolver" si no puede
         document.querySelectorAll("#tabla-prestamos .btn-sm.btn-primary").forEach(btn => {
           btn.style.display = this.puede("devolverPrestamo") ? "" : "none";
         });
         break;
+      }
     }
-  },
-
-  /**
-   * Lista todos los roles con UID desde Firestore (para Config)
-   */
-  async obtenerTodos() {
-    const snapshot = await getDocs(collection(db, "roles"));
-    return snapshot.docs.map(d => ({ uid: d.id, ...d.data() }));
-  },
-
-  /**
-   * Guarda o actualiza el rol de un usuario
-   */
-  async guardar(uid, rol) {
-    await setDoc(doc(db, "roles", uid), { rol }, { merge: true });
-  },
-
-  /**
-   * Elimina el documento de rol de un usuario
-   */
-  async eliminar(uid) {
-    await deleteDoc(doc(db, "roles", uid));
   }
 };
 
@@ -377,9 +297,6 @@ const Roles = {
 // ══════════════════════════════════════════════════════════════
 
 const Auth = {
-  /**
-   * Muestra el formulario de registro y oculta el de login
-   */
   mostrarRegistro() {
     document.getElementById("form-login").style.display = "none";
     document.getElementById("form-registro").style.display = "";
@@ -388,9 +305,6 @@ const Auth = {
     document.getElementById("registro-error").className = "alert alert-danger";
   },
 
-  /**
-   * Muestra el formulario de login y oculta el de registro
-   */
   mostrarLogin() {
     document.getElementById("form-login").style.display = "";
     document.getElementById("form-registro").style.display = "none";
@@ -399,22 +313,26 @@ const Auth = {
   },
 
   /**
-   * Registra un nuevo usuario (Auth + Firestore + Rol)
-   * El usuario se auto-registra y queda logueado.
-   * Se le asigna rol "solo_lectura" por defecto.
+   * Registra un nuevo usuario desde la pantalla de login.
+   * Crea cuenta en Auth + documento en Firestore "usuarios".
+   * Se le asigna tipo "Alumno" por defecto (no se puede elegir rol).
    */
   async registrar() {
-    const nombre = document.getElementById("reg-nombre").value.trim();
-    const email = document.getElementById("reg-email").value.trim();
+    const nombre   = document.getElementById("reg-nombre").value.trim();
+    const dni      = document.getElementById("reg-dni").value.trim();
+    const email    = document.getElementById("reg-email").value.trim();
     const password = document.getElementById("reg-password").value;
     const password2 = document.getElementById("reg-password2").value;
-    const tipo = document.getElementById("reg-tipo").value;
-    const curso = document.getElementById("reg-curso").value.trim();
-    const errorEl = document.getElementById("registro-error");
+    const errorEl  = document.getElementById("registro-error");
 
     // Validaciones
     if (!nombre) {
       errorEl.textContent = "El nombre es obligatorio.";
+      errorEl.className = "alert alert-danger show";
+      return;
+    }
+    if (!dni) {
+      errorEl.textContent = "El DNI es obligatorio.";
       errorEl.className = "alert alert-danger show";
       return;
     }
@@ -442,18 +360,15 @@ const Auth = {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
 
-      // 2) Crear documento en Firestore coleccion "usuarios"
+      // 2) Crear documento en Firestore con tipo "Alumno" por defecto
       await addDoc(collection(db, "usuarios"), {
-        authUid: uid,  // Referencia al UID de Auth
+        authUid: uid,
         nombre,
+        dni,
         email,
-        tipo,
-        curso: curso || "",
+        tipo: "Alumno",
         createdAt: serverTimestamp()
       });
-
-      // 3) Asignar rol por defecto (solo_lectura)
-      await setDoc(doc(db, "roles", uid), { rol: "solo_lectura" });
 
       // La sesion queda iniciada automaticamente.
       // onAuthStateChanged se encarga del resto.
@@ -481,13 +396,12 @@ const Auth = {
    * Inicia sesion con email y password
    */
   async login() {
-    const email = document.getElementById("login-usuario").value.trim();
+    const email    = document.getElementById("login-usuario").value.trim();
     const password = document.getElementById("login-password").value;
-    const errorEl = document.getElementById("login-error");
+    const errorEl  = document.getElementById("login-error");
 
-    // Validaciones basicas
     if (!email || !password) {
-      errorEl.textContent = "Completá email y contrasena.";
+      errorEl.textContent = "Completá email y contraseña.";
       errorEl.className = "alert alert-danger show";
       return;
     }
@@ -497,7 +411,6 @@ const Auth = {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged se encarga del resto
     } catch (error) {
       let msg = "Error al iniciar sesion.";
       switch (error.code) {
@@ -506,7 +419,7 @@ const Auth = {
           break;
         case "auth/wrong-password":
         case "auth/invalid-credential":
-          msg = "Contrasena incorrecta.";
+          msg = "Contraseña incorrecta.";
           break;
         case "auth/invalid-email":
           msg = "El formato del email no es valido.";
@@ -529,7 +442,6 @@ const Auth = {
     Utils.loading(true);
     try {
       await signOut(auth);
-      // onAuthStateChanged se encarga del resto
     } catch (error) {
       console.error("Error al cerrar sesion:", error);
     } finally {
@@ -539,7 +451,6 @@ const Auth = {
 
   /**
    * Configura el listener de estado de autenticacion.
-   * Se ejecuta automaticamente al cargar la app.
    */
   init() {
     onAuthStateChanged(auth, async (user) => {
@@ -547,7 +458,7 @@ const Auth = {
       const appScreen = document.getElementById("app");
 
       if (user) {
-        // Cargar rol del usuario
+        // Cargar rol del usuario desde su documento en "usuarios"
         await Roles.cargar(user.uid);
         // Aplicar permisos al sidebar
         Roles.aplicarSidebar();
@@ -557,14 +468,14 @@ const Auth = {
         appScreen.classList.remove("app-hidden");
         appScreen.classList.add("app-visible");
 
-        // Datos del usuario en el header (mostrar rol)
-        const email = user.email || "";
-        const initials = email.substring(0, 2).toUpperCase();
+        // Datos del usuario en el header
+        const nombreMostrar = Roles.usuarioNombre || user.email || "";
+        const initials = nombreMostrar.substring(0, 2).toUpperCase();
         const rolEtiqueta = Roles.etiquetas[Roles.actual] || Roles.actual;
         document.getElementById("avatar-initials").textContent = initials;
-        document.getElementById("header-username").textContent = `${email} (${rolEtiqueta})`;
+        document.getElementById("header-username").textContent = `${nombreMostrar} (${rolEtiqueta})`;
 
-        // Mostrar fecha de hoy en el panel principal
+        // Mostrar fecha de hoy
         document.getElementById("fecha-hoy").textContent =
           new Date().toLocaleDateString("es-AR", {
             weekday: "long", day: "numeric", month: "long", year: "numeric"
@@ -583,14 +494,12 @@ const Auth = {
         document.getElementById("login-usuario").value = "";
         document.getElementById("login-password").value = "";
         document.getElementById("login-error").className = "alert alert-danger";
-        // Limpiar formulario de registro si estaba abierto
         this.mostrarLogin();
         document.getElementById("reg-nombre").value = "";
+        document.getElementById("reg-dni").value = "";
         document.getElementById("reg-email").value = "";
         document.getElementById("reg-password").value = "";
         document.getElementById("reg-password2").value = "";
-        document.getElementById("reg-curso").value = "";
-        document.getElementById("reg-tipo").selectedIndex = 0;
       }
     });
   }
@@ -604,9 +513,6 @@ const Auth = {
 const Catalogo = {
   coleccion: "libros",
 
-  /**
-   * Lee todos los libros de Firestore y renderiza la tabla
-   */
   async render() {
     const tbody = document.getElementById("tabla-catalogo");
     const filtro = (document.getElementById("buscar-libro")?.value || "").toLowerCase();
@@ -621,13 +527,11 @@ const Catalogo = {
         const id = docSnap.id;
         const disponibles = (data.disponibles ?? data.ejemplares ?? 0);
 
-        // Filtrar por busqueda
         if (filtro) {
           const texto = `${data.titulo} ${data.autor} ${data.isbn}`.toLowerCase();
           if (!texto.includes(filtro)) return;
         }
 
-        // Badge de disponibilidad
         let badgeHTML;
         if (disponibles <= 0) {
           badgeHTML = '<span class="badge badge-rojo">Sin stock</span>';
@@ -667,9 +571,6 @@ const Catalogo = {
     }
   },
 
-  /**
-   * Agrega un nuevo libro a Firestore
-   */
   async agregar() {
     const titulo = document.getElementById("libro-titulo").value.trim();
     const autor = document.getElementById("libro-autor").value.trim();
@@ -677,7 +578,6 @@ const Catalogo = {
     const genero = document.getElementById("libro-genero").value;
     const ejemplares = parseInt(document.getElementById("libro-ejemplares").value) || 1;
 
-    // Validaciones
     if (!titulo) {
       UI.mostrarAlerta("alert-libro", "El titulo es obligatorio.", "danger");
       return;
@@ -691,16 +591,13 @@ const Catalogo = {
 
     try {
       await addDoc(collection(db, this.coleccion), {
-        titulo,
-        autor,
+        titulo, autor,
         isbn: isbn || "",
-        genero,
-        ejemplares,
+        genero, ejemplares,
         disponibles: ejemplares,
         createdAt: serverTimestamp()
       });
 
-      // Limpiar formulario y cerrar modal
       document.getElementById("libro-titulo").value = "";
       document.getElementById("libro-autor").value = "";
       document.getElementById("libro-isbn").value = "";
@@ -717,9 +614,6 @@ const Catalogo = {
     }
   },
 
-  /**
-   * Abre el modal de edicion con los datos del libro
-   */
   async editar(id) {
     try {
       const docSnap = await getDoc(doc(db, this.coleccion, id));
@@ -732,7 +626,6 @@ const Catalogo = {
       document.getElementById("libro-genero").value = data.genero || "Otro";
       document.getElementById("libro-ejemplares").value = data.ejemplares || 1;
 
-      // Cambiar el boton del modal para que guarde como edicion
       const modal = document.getElementById("modal-libro");
       modal.dataset.editId = id;
       const btnGuardar = modal.querySelector(".btn-primary");
@@ -746,9 +639,6 @@ const Catalogo = {
     }
   },
 
-  /**
-   * Guarda la edicion de un libro existente
-   */
   async guardarEdicion(id) {
     const titulo = document.getElementById("libro-titulo").value.trim();
     const autor = document.getElementById("libro-autor").value.trim();
@@ -764,7 +654,6 @@ const Catalogo = {
     Utils.loading(true);
 
     try {
-      // Obtener datos actuales para calcular disponibles
       const docSnap = await getDoc(doc(db, this.coleccion, id));
       const dataActual = docSnap.data();
       const ejemplaresAnteriores = dataActual.ejemplares || 0;
@@ -772,15 +661,12 @@ const Catalogo = {
       const nuevosDisponibles = Math.max(0, ejemplaresNuevos - prestados);
 
       await updateDoc(doc(db, this.coleccion, id), {
-        titulo,
-        autor,
+        titulo, autor,
         isbn: isbn || "",
-        genero,
-        ejemplares: ejemplaresNuevos,
+        genero, ejemplares: ejemplaresNuevos,
         disponibles: nuevosDisponibles
       });
 
-      // Restaurar modal a modo "agregar"
       this._resetModal();
       UI.cerrarModal("modal-libro");
       UI.mostrarAlerta("alert-libro", `Libro "${titulo}" actualizado correctamente.`);
@@ -793,17 +679,12 @@ const Catalogo = {
     }
   },
 
-  /**
-   * Elimina un libro de Firestore (solo si no tiene prestamos activos)
-   */
   async eliminar(id, titulo) {
-    // Confirmacion
     if (!confirm(`Estas seguro de eliminar "${titulo}"?`)) return;
 
     Utils.loading(true);
 
     try {
-      // Verificar que no tenga prestamos activos
       const q = query(
         collection(db, "prestamos"),
         where("libroId", "==", id),
@@ -812,12 +693,7 @@ const Catalogo = {
       const snapshot = await getDocs(q);
 
       if (!snapshot.empty) {
-        UI.mostrarAlerta(
-          "alert-libro",
-          "No se puede eliminar: tiene prestamos activos.",
-          "danger",
-          4000
-        );
+        UI.mostrarAlerta("alert-libro", "No se puede eliminar: tiene prestamos activos.", "danger", 4000);
         Utils.loading(false);
         return;
       }
@@ -833,18 +709,12 @@ const Catalogo = {
     }
   },
 
-  /**
-   * Obtiene todos los libros como array (para selects de prestamos)
-   */
   async obtenerTodos() {
     const q = query(collection(db, this.coleccion), orderBy("titulo", "asc"));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
   },
 
-  /**
-   * Restaura el modal a su estado original de "agregar"
-   */
   _resetModal() {
     const modal = document.getElementById("modal-libro");
     delete modal.dataset.editId;
@@ -853,9 +723,6 @@ const Catalogo = {
     btnGuardar.onclick = () => Catalogo.agregar();
   },
 
-  /**
-   * Escapa HTML para prevenir XSS
-   */
   _esc(str) {
     if (!str) return "";
     const div = document.createElement("div");
@@ -863,9 +730,6 @@ const Catalogo = {
     return div.innerHTML;
   },
 
-  /**
-   * Escapa atributos HTML
-   */
   _escAttr(str) {
     if (!str) return "";
     return str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
@@ -874,7 +738,7 @@ const Catalogo = {
 
 
 // ══════════════════════════════════════════════════════════════
-//  USUARIOS — CRUD de Usuarios (alumnos/docentes)
+//  USUARIOS — CRUD de Usuarios (alumnos/docentes/admin)
 // ══════════════════════════════════════════════════════════════
 
 const Usuarios = {
@@ -909,7 +773,7 @@ const Usuarios = {
 
         // Filtrar
         if (filtro) {
-          const texto = `${data.nombre} ${data.curso} ${data.tipo}`.toLowerCase();
+          const texto = `${data.nombre} ${data.dni || ""} ${data.tipo} ${data.email || ""}`.toLowerCase();
           if (!texto.includes(filtro)) return;
         }
 
@@ -920,11 +784,18 @@ const Usuarios = {
           "Administrativo": "badge-amarillo"
         }[data.tipo] || "badge-azul";
 
+        // Cuenta de acceso
+        const tieneCuenta = data.authUid ? true : false;
+        const cuentaHTML = tieneCuenta
+          ? `<span style="color:var(--verde);font-size:12px">${this._esc(data.email || "—")}</span>`
+          : `<span style="color:var(--texto-muted);font-size:12px">Sin cuenta</span>`;
+
         html += `
           <tr>
             <td><strong>${this._esc(data.nombre)}</strong></td>
             <td><span class="badge ${tipoBadge}">${this._esc(data.tipo)}</span></td>
-            <td>${this._esc(data.curso || "—")}</td>
+            <td>${this._esc(data.dni || "—")}</td>
+            <td>${cuentaHTML}</td>
             <td>${activos > 0 ? `<span class="badge badge-amarillo">${activos}</span>` : "0"}</td>
             <td>
               <button class="btn btn-sm" onclick="Usuarios.editar('${id}')" title="Editar">&#9998;</button>
@@ -934,7 +805,7 @@ const Usuarios = {
       });
 
       if (!html) {
-        html = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--texto-muted)">
+        html = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--texto-muted)">
           ${filtro ? "No se encontraron resultados." : "Aun no hay usuarios registrados."}
         </td></tr>`;
       }
@@ -943,41 +814,128 @@ const Usuarios = {
       Roles.aplicarBotones("usuarios");
     } catch (error) {
       console.error("Error al cargar usuarios:", error);
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#B42318">
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#B42318">
         Error al cargar datos.
       </td></tr>`;
     }
   },
 
   /**
-   * Agrega un nuevo usuario
+   * Limpia el modal de usuario y lo prepara para "agregar"
+   */
+  _prepararModalAgregar() {
+    document.getElementById("modal-usuario-titulo").textContent = "👤 Agregar usuario";
+    document.getElementById("usu-nombre").value = "";
+    document.getElementById("usu-tipo").value = "Alumno";
+    document.getElementById("usu-dni").value = "";
+    document.getElementById("usu-email").value = "";
+    document.getElementById("usu-email").removeAttribute("readonly");
+    document.getElementById("usu-email-label").textContent = "Email";
+    document.getElementById("usu-email-hint").style.display = "none";
+    document.getElementById("usu-password").value = "";
+    document.getElementById("usu-password").removeAttribute("readonly");
+    document.getElementById("usu-password-label").textContent = "Contraseña";
+    document.getElementById("usu-password-hint").style.display = "none";
+    document.getElementById("usu-password-group").style.display = "";
+    document.getElementById("modal-usuario-error").className = "alert alert-danger";
+
+    const btnGuardar = document.getElementById("btn-guardar-usuario");
+    btnGuardar.textContent = "Guardar usuario";
+    btnGuardar.onclick = () => Usuarios.agregar();
+
+    const modal = document.getElementById("modal-usuario");
+    delete modal.dataset.editId;
+  },
+
+  /**
+   * Agrega un nuevo usuario.
+   * Si se completa email + contraseña, crea la cuenta en Firebase Auth
+   * usando una app secundaria (el admin no se desloguea).
    */
   async agregar() {
-    const nombre = document.getElementById("usu-nombre").value.trim();
-    const tipo = document.getElementById("usu-tipo").value;
-    const curso = document.getElementById("usu-curso").value.trim();
+    const nombre   = document.getElementById("usu-nombre").value.trim();
+    const tipo     = document.getElementById("usu-tipo").value;
+    const dni      = document.getElementById("usu-dni").value.trim();
+    const email    = document.getElementById("usu-email").value.trim();
+    const password = document.getElementById("usu-password").value;
+    const errorEl  = document.getElementById("modal-usuario-error");
 
+    // Validaciones obligatorias
     if (!nombre) {
-      UI.mostrarAlerta("alert-usuario", "El nombre es obligatorio.", "danger");
+      errorEl.textContent = "El nombre es obligatorio.";
+      errorEl.className = "alert alert-danger show";
+      return;
+    }
+    if (!dni) {
+      errorEl.textContent = "El DNI es obligatorio.";
+      errorEl.className = "alert alert-danger show";
+      return;
+    }
+
+    // Validaciones de cuenta de acceso (opcional)
+    if (email && !password) {
+      errorEl.textContent = "Si ingresas un email, también debes ingresar una contraseña.";
+      errorEl.className = "alert alert-danger show";
+      return;
+    }
+    if (!email && password) {
+      errorEl.textContent = "Si ingresas una contraseña, también debes ingresar un email.";
+      errorEl.className = "alert alert-danger show";
+      return;
+    }
+    if (password && password.length < 6) {
+      errorEl.textContent = "La contraseña debe tener al menos 6 caracteres.";
+      errorEl.className = "alert alert-danger show";
       return;
     }
 
     Utils.loading(true);
+    errorEl.className = "alert alert-danger";
 
     try {
-      await addDoc(collection(db, this.coleccion), {
+      let authUid = null;
+
+      // Si tiene email + contraseña, crear cuenta en Auth (app secundaria)
+      if (email && password) {
+        try {
+          const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+          authUid = userCredential.user.uid;
+          // Limpiar la sesion de la app secundaria
+          await signOut(secondaryAuth);
+        } catch (authError) {
+          let msg = "Error al crear la cuenta de acceso.";
+          switch (authError.code) {
+            case "auth/email-already-in-use":
+              msg = "Ya existe una cuenta con ese email.";
+              break;
+            case "auth/invalid-email":
+              msg = "El formato del email no es valido.";
+              break;
+            case "auth/weak-password":
+              msg = "La contraseña es demasiado debil (minimo 6 caracteres).";
+              break;
+          }
+          errorEl.textContent = msg;
+          errorEl.className = "alert alert-danger show";
+          Utils.loading(false);
+          return;
+        }
+      }
+
+      // Crear documento en Firestore
+      const docData = {
         nombre,
         tipo,
-        curso: curso || "",
+        dni,
         createdAt: serverTimestamp()
-      });
+      };
+      if (authUid) docData.authUid = authUid;
+      if (email)   docData.email = email;
 
-      // Limpiar y cerrar
-      document.getElementById("usu-nombre").value = "";
-      document.getElementById("usu-curso").value = "";
-      document.getElementById("usu-tipo").selectedIndex = 0;
+      await addDoc(collection(db, this.coleccion), docData);
+
       UI.cerrarModal("modal-usuario");
-      UI.mostrarAlerta("alert-usuario", `Usuario "${nombre}" registrado.`);
+      UI.mostrarAlerta("alert-usuario", `Usuario "${nombre}" registrado correctamente.`);
       this.render();
     } catch (error) {
       console.error("Error al agregar usuario:", error);
@@ -988,7 +946,9 @@ const Usuarios = {
   },
 
   /**
-   * Abre el modal con datos para editar un usuario
+   * Abre el modal con datos para editar un usuario.
+   * - Si tiene authUid: email es solo lectura, no se muestra contraseña.
+   * - Si no tiene authUid: se pueden agregar email y contraseña.
    */
   async editar(id) {
     try {
@@ -996,14 +956,43 @@ const Usuarios = {
       if (!docSnap.exists()) return;
 
       const data = docSnap.data();
+      const tieneCuenta = !!data.authUid;
+
+      // Preparar modal en modo edicion
+      document.getElementById("modal-usuario-titulo").textContent = "👤 Modificar usuario";
       document.getElementById("usu-nombre").value = data.nombre || "";
       document.getElementById("usu-tipo").value = data.tipo || "Alumno";
-      document.getElementById("usu-curso").value = data.curso || "";
+      document.getElementById("usu-dni").value = data.dni || "";
+      document.getElementById("modal-usuario-error").className = "alert alert-danger";
+
+      // Configurar campos de email/contraseña segun si tiene cuenta
+      if (tieneCuenta) {
+        // Tiene cuenta Auth: email de solo lectura, sin campo de contraseña
+        document.getElementById("usu-email").value = data.email || "";
+        document.getElementById("usu-email").setAttribute("readonly", "readonly");
+        document.getElementById("usu-email-label").textContent = "Email (cuenta de acceso)";
+        document.getElementById("usu-email-hint").textContent = "El email no se puede modificar desde aquí.";
+        document.getElementById("usu-email-hint").style.display = "";
+        document.getElementById("usu-password-group").style.display = "none";
+      } else {
+        // No tiene cuenta Auth: puede agregar email y contraseña
+        document.getElementById("usu-email").value = "";
+        document.getElementById("usu-email").removeAttribute("readonly");
+        document.getElementById("usu-email-label").textContent = "Email";
+        document.getElementById("usu-email-hint").textContent = "Opcional. Si completas email + contraseña, se creará una cuenta de acceso.";
+        document.getElementById("usu-email-hint").style.display = "";
+        document.getElementById("usu-password").value = "";
+        document.getElementById("usu-password").removeAttribute("readonly");
+        document.getElementById("usu-password-label").textContent = "Contraseña";
+        document.getElementById("usu-password-hint").textContent = "Opcional. Mínimo 6 caracteres.";
+        document.getElementById("usu-password-hint").style.display = "";
+        document.getElementById("usu-password-group").style.display = "";
+      }
 
       // Cambiar boton a modo edicion
       const modal = document.getElementById("modal-usuario");
       modal.dataset.editId = id;
-      const btnGuardar = modal.querySelector(".btn-primary");
+      const btnGuardar = document.getElementById("btn-guardar-usuario");
       btnGuardar.textContent = "Actualizar usuario";
       btnGuardar.onclick = () => Usuarios.guardarEdicion(id);
 
@@ -1014,30 +1003,95 @@ const Usuarios = {
   },
 
   /**
-   * Guarda la edicion de un usuario
+   * Guarda la edicion de un usuario.
+   * Puede cambiar nombre, tipo y DNI.
+   * Si el usuario no tiene cuenta Auth y se ingresan email + contraseña,
+   * se le crea una cuenta de acceso.
    */
   async guardarEdicion(id) {
-    const nombre = document.getElementById("usu-nombre").value.trim();
-    const tipo = document.getElementById("usu-tipo").value;
-    const curso = document.getElementById("usu-curso").value.trim();
+    const nombre   = document.getElementById("usu-nombre").value.trim();
+    const tipo     = document.getElementById("usu-tipo").value;
+    const dni      = document.getElementById("usu-dni").value.trim();
+    const email    = document.getElementById("usu-email").value.trim();
+    const password = document.getElementById("usu-password").value;
+    const errorEl  = document.getElementById("modal-usuario-error");
 
     if (!nombre) {
-      UI.mostrarAlerta("alert-usuario", "El nombre es obligatorio.", "danger");
+      errorEl.textContent = "El nombre es obligatorio.";
+      errorEl.className = "alert alert-danger show";
+      return;
+    }
+    if (!dni) {
+      errorEl.textContent = "El DNI es obligatorio.";
+      errorEl.className = "alert alert-danger show";
       return;
     }
 
     Utils.loading(true);
+    errorEl.className = "alert alert-danger";
 
     try {
-      await updateDoc(doc(db, this.coleccion, id), {
-        nombre,
-        tipo,
-        curso: curso || ""
-      });
+      // Obtener datos actuales del documento
+      const docSnap = await getDoc(doc(db, this.coleccion, id));
+      const dataActual = docSnap.data();
+      const tieneCuenta = !!dataActual.authUid;
 
-      this._resetModal();
+      // Preparar datos a actualizar
+      const datosActualizar = { nombre, tipo, dni };
+
+      // Si NO tiene cuenta y se ingresaron email + contraseña, crear cuenta Auth
+      if (!tieneCuenta && email && password) {
+        if (password.length < 6) {
+          errorEl.textContent = "La contraseña debe tener al menos 6 caracteres.";
+          errorEl.className = "alert alert-danger show";
+          Utils.loading(false);
+          return;
+        }
+
+        try {
+          const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+          datosActualizar.authUid = userCredential.user.uid;
+          datosActualizar.email = email;
+          await signOut(secondaryAuth);
+        } catch (authError) {
+          let msg = "Error al crear la cuenta de acceso.";
+          switch (authError.code) {
+            case "auth/email-already-in-use":
+              msg = "Ya existe una cuenta con ese email.";
+              break;
+            case "auth/invalid-email":
+              msg = "El formato del email no es valido.";
+              break;
+            case "auth/weak-password":
+              msg = "La contraseña es demasiado debil.";
+              break;
+          }
+          errorEl.textContent = msg;
+          errorEl.className = "alert alert-danger show";
+          Utils.loading(false);
+          return;
+        }
+      } else if (!tieneCuenta && email && !password) {
+        // Solo email sin contraseña: guardar el email en Firestore (sin cuenta Auth)
+        datosActualizar.email = email;
+      }
+
+      await updateDoc(doc(db, this.coleccion, id), datosActualizar);
+
+      this._prepararModalAgregar();
       UI.cerrarModal("modal-usuario");
       UI.mostrarAlerta("alert-usuario", `Usuario "${nombre}" actualizado.`);
+
+      // Si se cambio el rol del usuario logueado, recargar permisos
+      if (Roles.usuarioDocId === id) {
+        await Roles.cargar(auth.currentUser.uid);
+        Roles.aplicarSidebar();
+        const nombreMostrar = Roles.usuarioNombre || auth.currentUser.email || "";
+        const rolEtiqueta = Roles.etiquetas[Roles.actual] || Roles.actual;
+        document.getElementById("avatar-initials").textContent = nombreMostrar.substring(0, 2).toUpperCase();
+        document.getElementById("header-username").textContent = `${nombreMostrar} (${rolEtiqueta})`;
+      }
+
       this.render();
     } catch (error) {
       console.error("Error al actualizar usuario:", error);
@@ -1048,7 +1102,8 @@ const Usuarios = {
   },
 
   /**
-   * Elimina un usuario (solo si no tiene prestamos activos)
+   * Elimina un usuario (solo si no tiene prestamos activos).
+   * Nota: la cuenta de Auth no se puede eliminar desde el cliente.
    */
   async eliminar(id, nombre) {
     if (!confirm(`Estas seguro de eliminar a "${nombre}"?`)) return;
@@ -1064,12 +1119,7 @@ const Usuarios = {
       const snapshot = await getDocs(q);
 
       if (!snapshot.empty) {
-        UI.mostrarAlerta(
-          "alert-usuario",
-          "No se puede eliminar: tiene prestamos activos.",
-          "danger",
-          4000
-        );
+        UI.mostrarAlerta("alert-usuario", "No se puede eliminar: tiene prestamos activos.", "danger", 4000);
         Utils.loading(false);
         return;
       }
@@ -1094,17 +1144,6 @@ const Usuarios = {
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
   },
 
-  /**
-   * Restaura el modal a modo "agregar"
-   */
-  _resetModal() {
-    const modal = document.getElementById("modal-usuario");
-    delete modal.dataset.editId;
-    const btnGuardar = modal.querySelector(".btn-primary");
-    btnGuardar.textContent = "Guardar usuario";
-    btnGuardar.onclick = () => Usuarios.agregar();
-  },
-
   _esc(str) {
     if (!str) return "";
     const div = document.createElement("div");
@@ -1126,9 +1165,6 @@ const Usuarios = {
 const Prestamos = {
   coleccion: "prestamos",
 
-  /**
-   * Renderiza la tabla de todos los prestamos
-   */
   async render() {
     const tbody = document.getElementById("tabla-prestamos");
 
@@ -1142,13 +1178,11 @@ const Prestamos = {
         const data = docSnap.data();
         const id = docSnap.id;
 
-        // Determinar estado
         let estado, badge;
         if (data.estado === "devuelto") {
           estado = "Devuelto";
           badge = "badge-verde";
         } else {
-          // Verificar si esta vencido
           if (data.fechaDevolucion && Utils.daysDiff(data.fechaDevolucion) > 0) {
             estado = "Vencido";
             badge = "badge-rojo";
@@ -1192,12 +1226,8 @@ const Prestamos = {
     }
   },
 
-  /**
-   * Carga los selects del modal de nuevo prestamo
-   */
   async cargarSelects() {
     try {
-      // Cargar libros con stock disponible
       const libros = await Catalogo.obtenerTodos();
       const selectLibro = document.getElementById("pres-libro");
       selectLibro.innerHTML = '<option value="">— Seleccionar libro —</option>';
@@ -1207,19 +1237,17 @@ const Prestamos = {
         }
       });
 
-      // Cargar usuarios
       const usuarios = await Usuarios.obtenerTodos();
       const selectUsuario = document.getElementById("pres-usuario");
       selectUsuario.innerHTML = '<option value="">— Seleccionar usuario —</option>';
       usuarios.forEach(usu => {
-        selectUsuario.innerHTML += `<option value="${usu.id}" data-nombre="${this._escAttr(usu.nombre)}">${usu.nombre} (${usu.tipo} - ${usu.curso || "—"})</option>`;
+        const dniStr = usu.dni ? ` - DNI: ${usu.dni}` : "";
+        selectUsuario.innerHTML += `<option value="${usu.id}" data-nombre="${this._escAttr(usu.nombre)}">${usu.nombre} (${usu.tipo}${dniStr})</option>`;
       });
 
-      // Configurar fechas por defecto
       const hoy = Utils.today();
       document.getElementById("pres-fecha").value = hoy;
 
-      // Cargar dias por defecto desde config
       const diasDefault = await Config.obtenerDias();
       const fechaDevolucion = Utils.addDays(hoy, diasDefault);
       document.getElementById("pres-devolucion").value = fechaDevolucion.toISOString().split("T")[0];
@@ -1228,9 +1256,6 @@ const Prestamos = {
     }
   },
 
-  /**
-   * Registra un nuevo prestamo
-   */
   async registrar() {
     const selectLibro = document.getElementById("pres-libro");
     const selectUsuario = document.getElementById("pres-usuario");
@@ -1239,7 +1264,6 @@ const Prestamos = {
     const fechaPrestamo = document.getElementById("pres-fecha").value;
     const fechaDevolucion = document.getElementById("pres-devolucion").value;
 
-    // Validaciones
     if (!libroId || !usuarioId) {
       UI.mostrarAlerta("alert-prestamo", "Selecciona un libro y un usuario.", "danger");
       return;
@@ -1259,24 +1283,18 @@ const Prestamos = {
     Utils.loading(true);
 
     try {
-      // Crear el prestamo
       await addDoc(collection(db, this.coleccion), {
-        libroId,
-        libroTitulo,
-        usuarioId,
-        usuarioNombre,
+        libroId, libroTitulo, usuarioId, usuarioNombre,
         fechaPrestamo: new Date(fechaPrestamo + "T12:00:00"),
         fechaDevolucion: new Date(fechaDevolucion + "T12:00:00"),
         estado: "activo",
         createdAt: serverTimestamp()
       });
 
-      // Descontar un ejemplar disponible del libro
       await updateDoc(doc(db, "libros", libroId), {
         disponibles: increment(-1)
       });
 
-      // Cerrar modal y refrescar
       UI.cerrarModal("modal-prestamo");
       UI.mostrarAlerta("alert-prestamo", `Prestamo de "${libroTitulo}" registrado.`);
       this.render();
@@ -1289,26 +1307,20 @@ const Prestamos = {
     }
   },
 
-  /**
-   * Registra la devolucion de un prestamo
-   */
   async devolver(id) {
     if (!confirm("Registrar devolucion de este libro?")) return;
 
     Utils.loading(true);
 
     try {
-      // Obtener datos del prestamo
       const docSnap = await getDoc(doc(db, this.coleccion, id));
       const data = docSnap.data();
 
-      // Marcar como devuelto
       await updateDoc(doc(db, this.coleccion, id), {
         estado: "devuelto",
         fechaRealDevolucion: new Date()
       });
 
-      // Devolver el ejemplar al libro
       await updateDoc(doc(db, "libros", data.libroId), {
         disponibles: increment(1)
       });
@@ -1343,18 +1355,11 @@ const Prestamos = {
 // ══════════════════════════════════════════════════════════════
 
 const Vencidos = {
-  /**
-   * Renderiza la tabla de prestamos vencidos
-   */
   async render() {
     const tbody = document.getElementById("tabla-vencidos");
 
     try {
-      // Cargar nombres para resolver por ID
       const { mapLibros, mapUsuarios } = await Utils.cargarNombres();
-
-      // Obtener TODOS los prestamos (sin filtro por estado,
-      // porque datos previos puede que no tengan el campo estado)
       const prestamosSnap = await getDocs(collection(db, "prestamos"));
 
       const hoy = new Date();
@@ -1367,7 +1372,6 @@ const Vencidos = {
         const data = docSnap.data();
         const id = docSnap.id;
 
-        // Ignorar devueltos
         if (data.estado === "devuelto") return;
 
         const fechaDev = Utils.toDate(data.fechaDevolucion);
@@ -1408,12 +1412,8 @@ const Vencidos = {
     }
   },
 
-  /**
-   * Actualiza el badge de vencidos en el sidebar
-   */
   async actualizarBadge() {
     try {
-      // Obtener TODOS los prestamos (compatible con datos sin campo estado)
       const prestamosSnap = await getDocs(collection(db, "prestamos"));
 
       const hoy = new Date();
@@ -1454,19 +1454,13 @@ const Vencidos = {
 // ══════════════════════════════════════════════════════════════
 
 const Dashboard = {
-  /**
-   * Carga todas las estadisticas y los ultimos prestamos
-   */
   async render() {
     try {
-      // Cargar mapas de nombres (para prestamos que solo guarden IDs)
       const { mapLibros, mapUsuarios } = await Utils.cargarNombres();
 
-      // Contar libros y usuarios
       const totalLibros = Object.keys(mapLibros).length;
       const totalUsuarios = Object.keys(mapUsuarios).length;
 
-      // Prestamos
       const prestamosSnap = await getDocs(collection(db, "prestamos"));
       let activos = 0;
       let vencidos = 0;
@@ -1479,7 +1473,6 @@ const Dashboard = {
         const data = docSnap.data();
         const p = { id: docSnap.id, ...data };
 
-        // Determinar si esta activo/vencido (compatible con datos que no tengan campo estado)
         const esDevuelto = (data.estado === "devuelto");
         const esActivo = !esDevuelto;
 
@@ -1492,19 +1485,16 @@ const Dashboard = {
           }
         }
 
-        // Ordenar por fecha
         const fechaP = Utils.toDate(data.fechaPrestamo);
         p._sortDate = fechaP ? fechaP.getTime() : 0;
         ultimosPrestamos.push(p);
       });
 
-      // Actualizar contadores
       document.getElementById("stat-libros").textContent = totalLibros;
       document.getElementById("stat-activos").textContent = activos;
       document.getElementById("stat-vencidos").textContent = vencidos;
       document.getElementById("stat-usuarios").textContent = totalUsuarios;
 
-      // Ordenar por fecha descendente y tomar 5
       ultimosPrestamos.sort((a, b) => b._sortDate - a._sortDate);
       const ultimos5 = ultimosPrestamos.slice(0, 5);
 
@@ -1561,9 +1551,6 @@ const Dashboard = {
 // ══════════════════════════════════════════════════════════════
 
 const Reportes = {
-  /**
-   * Renderiza estadisticas y ranking de libros mas prestados
-   */
   async render() {
     const statsContainer = document.getElementById("stats-reportes");
     const tbody = document.getElementById("tabla-mas-prestados");
@@ -1573,7 +1560,6 @@ const Reportes = {
       const usuariosSnap = await getDocs(collection(db, "usuarios"));
       const librosSnap = await getDocs(collection(db, "libros"));
 
-      // Calcular estadisticas
       let totalPrestamos = prestamosSnap.size;
       let devueltos = 0;
       let activos = 0;
@@ -1581,21 +1567,16 @@ const Reportes = {
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
 
-      // Contar prestamos por libro
       const prestamosPorLibro = {};
-      // Contar prestamos por usuario
       const prestamosPorUsuario = {};
 
-      // Prestamos del mes actual
       const mesActual = new Date();
       const primerDiaMes = new Date(mesActual.getFullYear(), mesActual.getMonth(), 1);
       let prestamosMes = 0;
 
-      // Alumnos vs Docentes
       let prestamosAlumnos = 0;
       let prestamosDocentes = 0;
 
-      // Mapear usuarios por ID para obtener tipo
       const usuariosMap = {};
       const usuariosNombres = {};
       usuariosSnap.forEach(d => {
@@ -1603,7 +1584,6 @@ const Reportes = {
         usuariosNombres[d.id] = d.data().nombre || "—";
       });
 
-      // Mapear libros por ID para resolver nombres y autores
       const librosMap = {};
       librosSnap.forEach(d => {
         librosMap[d.id] = d.data();
@@ -1622,7 +1602,6 @@ const Reportes = {
           }
         }
 
-        // Contar por libro (resolver nombre por ID si no tiene titulo)
         const lid = data.libroId || data.libroTitulo;
         const tituloLibro = data.libroTitulo
           || (data.libroId && librosMap[data.libroId]?.titulo)
@@ -1634,16 +1613,13 @@ const Reportes = {
         }
         prestamosPorLibro[lid].count++;
 
-        // Contar por usuario
         if (data.usuarioId) {
           prestamosPorUsuario[data.usuarioId] = (prestamosPorUsuario[data.usuarioId] || 0) + 1;
         }
 
-        // Prestamos del mes
         const fechaP = Utils.toDate(data.fechaPrestamo);
         if (fechaP && fechaP >= primerDiaMes) prestamosMes++;
 
-        // Por tipo de usuario
         const usu = usuariosMap[data.usuarioId];
         if (usu) {
           if (usu.tipo === "Alumno") prestamosAlumnos++;
@@ -1651,12 +1627,10 @@ const Reportes = {
         }
       });
 
-      // Top libros mas prestados
       const ranking = Object.values(prestamosPorLibro)
         .sort((a, b) => b.count - a.count)
         .slice(0, 10);
 
-      // Top usuario mas activo
       let topUsuario = { nombre: "—", cantidad: 0 };
       Object.entries(prestamosPorUsuario).forEach(([uid, cantidad]) => {
         if (cantidad > topUsuario.cantidad) {
@@ -1664,7 +1638,6 @@ const Reportes = {
         }
       });
 
-      // Renderizar cards de estadisticas
       statsContainer.innerHTML = `
         <div class="stat-card">
           <div class="label">Total prestamos</div>
@@ -1698,7 +1671,6 @@ const Reportes = {
         </div>
       `;
 
-      // Renderizar tabla de ranking
       let rankingHTML = "";
       if (ranking.length === 0) {
         rankingHTML = `<tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--texto-muted)">
@@ -1740,9 +1712,6 @@ const Reportes = {
 const Config = {
   docId: "config-general",
 
-  /**
-   * Carga la configuracion guardada en Firestore
-   */
   async cargar() {
     try {
       const docSnap = await getDoc(doc(db, "config", this.docId));
@@ -1752,16 +1721,11 @@ const Config = {
         document.getElementById("cfg-dias").value = data.diasPrestamo || 7;
         document.getElementById("cfg-biblio").value = data.nombreBibliotecario || "";
       }
-      // Cargar tabla de roles
-      this.cargarRoles();
     } catch (error) {
       console.error("Error al cargar configuracion:", error);
     }
   },
 
-  /**
-   * Guarda la configuracion en Firestore
-   */
   async guardar() {
     const nombreInstitucion = document.getElementById("cfg-nombre").value.trim();
     const diasPrestamo = parseInt(document.getElementById("cfg-dias").value) || 7;
@@ -1771,9 +1735,7 @@ const Config = {
 
     try {
       await setDoc(doc(db, "config", this.docId), {
-        nombreInstitucion,
-        diasPrestamo,
-        nombreBibliotecario,
+        nombreInstitucion, diasPrestamo, nombreBibliotecario,
         updatedAt: serverTimestamp()
       });
 
@@ -1786,9 +1748,6 @@ const Config = {
     }
   },
 
-  /**
-   * Obtiene los dias de prestamo por defecto desde la config
-   */
   async obtenerDias() {
     try {
       const docSnap = await getDoc(doc(db, "config", this.docId));
@@ -1798,107 +1757,7 @@ const Config = {
     } catch (error) {
       console.error("Error al obtener dias de prestamo:", error);
     }
-    return 7; // Valor por defecto
-  },
-
-  /**
-   * Carga la lista de usuarios con roles en la seccion de config
-   */
-  async cargarRoles() {
-    const container = document.getElementById("roles-container");
-    if (!container) return;
-
-    try {
-      const rolesSnap = await Roles.obtenerTodos();
-
-      if (rolesSnap.length === 0) {
-        container.innerHTML = '<p style="color:var(--texto-muted);font-size:13px">No hay roles asignados. Todos los usuarios tienen acceso de bibliotecario por defecto.</p>';
-        return;
-      }
-
-      let html = `
-        <table style="width:100%;margin-top:1rem;border-collapse:collapse">
-          <thead>
-            <tr>
-              <th style="text-align:left;font-size:11px;font-weight:700;letter-spacing:0.5px;color:var(--texto-muted);padding:8px 12px;background:var(--gris-100);border-bottom:1px solid var(--gris-200)">Email (UID)</th>
-              <th style="text-align:left;font-size:11px;font-weight:700;letter-spacing:0.5px;color:var(--texto-muted);padding:8px 12px;background:var(--gris-100);border-bottom:1px solid var(--gris-200)">Rol</th>
-              <th style="text-align:left;font-size:11px;font-weight:700;letter-spacing:0.5px;color:var(--texto-muted);padding:8px 12px;background:var(--gris-100);border-bottom:1px solid var(--gris-200)">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>`;
-
-      rolesSnap.forEach(r => {
-        const rolBadge = {
-          bibliotecario: "badge-verde",
-          ayudante: "badge-azul",
-          solo_lectura: "badge-amarillo"
-        }[r.rol] || "badge-azul";
-        const rolLabel = Roles.etiquetas[r.rol] || r.rol;
-
-        html += `
-            <tr>
-              <td style="padding:10px 12px;font-size:12px;color:var(--texto-medio);border-bottom:1px solid var(--gris-200);font-family:monospace">${r.uid}</td>
-              <td style="padding:10px 12px;border-bottom:1px solid var(--gris-200)">
-                <span class="badge ${rolBadge}">${rolLabel}</span>
-              </td>
-              <td style="padding:10px 12px;border-bottom:1px solid var(--gris-200)">
-                <select class="form-select" style="width:auto;padding:4px 8px;font-size:12px" onchange="Config.cambiarRol('${r.uid}', this.value)">
-                  <option value="bibliotecario" ${r.rol === "bibliotecario" ? "selected" : ""}>Bibliotecario</option>
-                  <option value="ayudante" ${r.rol === "ayudante" ? "selected" : ""}>Ayudante</option>
-                  <option value="solo_lectura" ${r.rol === "solo_lectura" ? "selected" : ""}>Solo lectura</option>
-                </select>
-                <button class="btn btn-sm btn-danger" style="margin-left:6px" onclick="Config.eliminarRol('${r.uid}')">Quitar</button>
-              </td>
-            </tr>`;
-      });
-
-      html += `</tbody></table>`;
-      container.innerHTML = html;
-    } catch (error) {
-      console.error("Error al cargar roles:", error);
-      container.innerHTML = '<p style="color:#B42318;font-size:13px">Error al cargar roles.</p>';
-    }
-  },
-
-  /**
-   * Cambia el rol de un usuario
-   */
-  async cambiarRol(uid, nuevoRol) {
-    Utils.loading(true);
-    try {
-      await Roles.guardar(uid, nuevoRol);
-      UI.mostrarAlerta("alert-config", `Rol actualizado a "${Roles.etiquetas[nuevoRol]}".`);
-      // Si cambio el propio rol, recargar
-      if (auth.currentUser && uid === auth.currentUser.uid) {
-        Roles.actual = nuevoRol;
-        Roles.aplicarSidebar();
-        const email = auth.currentUser.email || "";
-        document.getElementById("header-username").textContent = `${email} (${Roles.etiquetas[nuevoRol]})`;
-      }
-    } catch (error) {
-      console.error("Error al cambiar rol:", error);
-      UI.mostrarAlerta("alert-config", "Error al cambiar el rol.", "danger");
-    } finally {
-      Utils.loading(false);
-    }
-  },
-
-  /**
-   * Elimina el rol asignado de un usuario (vuelve a bibliotecario por defecto)
-   */
-  async eliminarRol(uid) {
-    if (!confirm("Al eliminar el rol, el usuario vuelve a ser Bibliotecario por defecto.")) return;
-    Utils.loading(true);
-    try {
-      await Roles.eliminar(uid);
-      UI.mostrarAlerta("alert-config", "Rol eliminado. El usuario ahora es Bibliotecario por defecto.");
-      this.cargarRoles();
-    } catch (error) {
-      console.error("Error al eliminar rol:", error);
-      UI.mostrarAlerta("alert-config", "Error al eliminar el rol.", "danger");
-    } finally {
-      Utils.loading(false);
-    }
+    return 7;
   }
 };
 
@@ -1928,7 +1787,7 @@ document.getElementById("login-usuario").addEventListener("keypress", (e) => {
 document.getElementById("reg-password2").addEventListener("keypress", (e) => {
   if (e.key === "Enter") Auth.registrar();
 });
-document.getElementById("reg-curso").addEventListener("keypress", (e) => {
+document.getElementById("reg-dni").addEventListener("keypress", (e) => {
   if (e.key === "Enter") Auth.registrar();
 });
 
@@ -1946,12 +1805,14 @@ document.querySelectorAll(".overlay").forEach(overlay => {
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) {
       overlay.classList.remove("open");
-      // Resetear modales si estaban en modo edicion
       Catalogo._resetModal();
-      Usuarios._resetModal();
+      Usuarios._prepararModalAgregar();
     }
   });
 });
+
+// Configurar modal de usuario al abrirlo (preparar para agregar)
+document.getElementById("btn-guardar-usuario")?.addEventListener("click", () => {});
 
 // Iniciar el listener de autenticacion
 Auth.init();

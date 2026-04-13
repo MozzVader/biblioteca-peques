@@ -23,6 +23,10 @@ const app  = initializeApp(firebaseConfig);
 const db   = getFirestore(app);
 const auth = getAuth(app);
 
+// ── App secundaria para crear usuarios sin desloguear al admin ──
+const secondaryApp  = initializeApp(firebaseConfig, "Secondary");
+const secondaryAuth = getAuth(secondaryApp);
+
 // ── Referencias a colecciones ─────────────────
 const colLibros    = collection(db, 'libros');
 const colUsuarios  = collection(db, 'usuarios');
@@ -86,7 +90,7 @@ async function fbUpdatePrestamo(id, datos) {
 
 export {
   // Instancias
-  db, auth,
+  db, auth, secondaryAuth,
   // SDK directo (usado por app.js para queries avanzadas)
   collection, doc, addDoc, setDoc, getDoc, getDocs,
   updateDoc, deleteDoc, query, where, orderBy, limit,
