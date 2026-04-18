@@ -1111,9 +1111,27 @@ const Usuarios = {
   },
 
   /**
+   * Intenta vincular una cuenta Auth existente usando secondaryAuth.
+   * Si el email ya existe en Auth, inicia sesión con esa cuenta para obtener el UID.
+   * Retorna { authUid } o lanza error.
+   */
+  async _vincularCuentaExistente(email, password) {
+    try {
+      const userCredential = await signInWithEmailAndPassword(secondaryAuth, email, password);
+      const authUid = userCredential.user.uid;
+      await signOut(secondaryAuth);
+      return { authUid };
+    } catch (error) {
+      await signOut(secondaryAuth).catch(() => {});
+      throw error;
+    }
+  },
+
+  /**
    * Agrega un nuevo usuario.
    * Si se completa email + contraseña, crea la cuenta en Firebase Auth
    * usando una app secundaria (el admin no se desloguea).
+   * Si el email ya existe en Auth, intenta vincular la cuenta existente.
    */
   async agregar() {
     const nombre   = document.getElementById("usu-nombre").value.trim();
@@ -1166,22 +1184,36 @@ const Usuarios = {
           // Limpiar la sesion de la app secundaria
           await signOut(secondaryAuth);
         } catch (authError) {
-          let msg = "Error al crear la cuenta de acceso.";
-          switch (authError.code) {
-            case "auth/email-already-in-use":
-              msg = "Ya existe una cuenta con ese email.";
-              break;
-            case "auth/invalid-email":
-              msg = "El formato del email no es valido.";
-              break;
-            case "auth/weak-password":
-              msg = "La contraseña es demasiado debil (minimo 6 caracteres).";
-              break;
+          if (authError.code === "auth/email-already-in-use") {
+            // La cuenta Auth ya existe: intentar vincularla con la contraseña ingresada
+            try {
+              const result = await this._vincularCuentaExistente(email, password);
+              authUid = result.authUid;
+            } catch (linkError) {
+              if (linkError.code === "auth/wrong-password" || linkError.code === "auth/invalid-credential") {
+                errorEl.textContent = "El email ya existe en Firebase Auth pero la contraseña no coincide. Verificá los datos o consultá al administrador del proyecto.";
+              } else {
+                errorEl.textContent = "No se pudo vincular la cuenta existente. Error: " + (linkError.code || linkError.message);
+              }
+              errorEl.className = "alert alert-danger show";
+              Utils.loading(false);
+              return;
+            }
+          } else {
+            let msg = "Error al crear la cuenta de acceso.";
+            switch (authError.code) {
+              case "auth/invalid-email":
+                msg = "El formato del email no es valido.";
+                break;
+              case "auth/weak-password":
+                msg = "La contraseña es demasiado debil (minimo 6 caracteres).";
+                break;
+            }
+            errorEl.textContent = msg;
+            errorEl.className = "alert alert-danger show";
+            Utils.loading(false);
+            return;
           }
-          errorEl.textContent = msg;
-          errorEl.className = "alert alert-danger show";
-          Utils.loading(false);
-          return;
         }
       }
 
@@ -1195,10 +1227,12 @@ const Usuarios = {
       if (authUid) docData.authUid = authUid;
       if (email)   docData.email = email;
 
+      const linkMsg = authUid ? " (cuenta vinculada)" : "";
+
       await addDoc(collection(db, this.coleccion), docData);
 
       UI.cerrarModal("modal-usuario");
-      UI.mostrarAlerta("alert-usuario", `Usuario "${nombre}" registrado correctamente.`);
+      UI.mostrarAlerta("alert-usuario", `Usuario "${nombre}" registrado correctamente.${linkMsg}`);
       this.render();
     } catch (error) {
       console.error("Error al agregar usuario:", error);
@@ -1242,12 +1276,12 @@ const Usuarios = {
         document.getElementById("usu-email").value = "";
         document.getElementById("usu-email").removeAttribute("readonly");
         document.getElementById("usu-email-label").textContent = "Email";
-        document.getElementById("usu-email-hint").textContent = "Opcional. Si completás email + contraseña, se creará una cuenta de acceso.";
+        document.getElementById("usu-email-hint").textContent = "Opcional. Si completás email + contraseña, se creará o vinculará una cuenta de acceso existente.";
         document.getElementById("usu-email-hint").style.display = "";
         document.getElementById("usu-password").value = "";
         document.getElementById("usu-password").removeAttribute("readonly");
         document.getElementById("usu-password-label").textContent = "Contraseña";
-        document.getElementById("usu-password-hint").textContent = "Opcional. Mínimo 6 caracteres.";
+        document.getElementById("usu-password-hint").textContent = "Opcional. Mínimo 6 caracteres. Si el email ya existe en Auth, se vinculará la cuenta.";
         document.getElementById("usu-password-hint").style.display = "";
         document.getElementById("usu-password-group").style.display = "";
       }
@@ -1317,22 +1351,37 @@ const Usuarios = {
           datosActualizar.email = email;
           await signOut(secondaryAuth);
         } catch (authError) {
-          let msg = "Error al crear la cuenta de acceso.";
-          switch (authError.code) {
-            case "auth/email-already-in-use":
-              msg = "Ya existe una cuenta con ese email.";
-              break;
-            case "auth/invalid-email":
-              msg = "El formato del email no es valido.";
-              break;
-            case "auth/weak-password":
-              msg = "La contraseña es demasiado debil.";
-              break;
+          if (authError.code === "auth/email-already-in-use") {
+            // La cuenta Auth ya existe: intentar vincularla
+            try {
+              const result = await this._vincularCuentaExistente(email, password);
+              datosActualizar.authUid = result.authUid;
+              datosActualizar.email = email;
+            } catch (linkError) {
+              if (linkError.code === "auth/wrong-password" || linkError.code === "auth/invalid-credential") {
+                errorEl.textContent = "El email ya existe en Firebase Auth pero la contraseña no coincide. Verificá los datos o consultá al administrador del proyecto.";
+              } else {
+                errorEl.textContent = "No se pudo vincular la cuenta existente. Error: " + (linkError.code || linkError.message);
+              }
+              errorEl.className = "alert alert-danger show";
+              Utils.loading(false);
+              return;
+            }
+          } else {
+            let msg = "Error al crear la cuenta de acceso.";
+            switch (authError.code) {
+              case "auth/invalid-email":
+                msg = "El formato del email no es valido.";
+                break;
+              case "auth/weak-password":
+                msg = "La contraseña es demasiado debil.";
+                break;
+            }
+            errorEl.textContent = msg;
+            errorEl.className = "alert alert-danger show";
+            Utils.loading(false);
+            return;
           }
-          errorEl.textContent = msg;
-          errorEl.className = "alert alert-danger show";
-          Utils.loading(false);
-          return;
         }
       } else if (!tieneCuenta && email && !password) {
         // Solo email sin contraseña: guardar el email en Firestore (sin cuenta Auth)
