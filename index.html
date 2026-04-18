@@ -12,6 +12,9 @@
 </head>
 <body>
 
+  <!-- ═══ Toast Container ═══ -->
+  <div id="toast-container"></div>
+
   <!-- ═══════════════════════════════════════
        PANTALLA DE LOGIN
   ════════════════════════════════════════ -->
@@ -23,7 +26,6 @@
 
       <!-- FORMULARIO LOGIN -->
       <div id="form-login">
-        <div id="login-error" class="alert alert-danger"></div>
         <div class="form-group">
           <label>Email</label>
           <input class="form-input" id="login-usuario" type="email" placeholder="usuario@correo.com">
@@ -40,7 +42,6 @@
 
       <!-- FORMULARIO REGISTRO (auto-registro: rol por defecto = Alumno) -->
       <div id="form-registro" style="display:none">
-        <div id="registro-error" class="alert alert-danger"></div>
         <div class="form-group">
           <label>Nombre completo *</label>
           <input class="form-input" id="reg-nombre" type="text" placeholder="Juan Pérez">
@@ -271,7 +272,6 @@
             <h2>Catálogo de libros</h2>
             <p>Buscá y gestioná el inventario de la biblioteca</p>
           </div>
-          <div id="alert-libro" class="alert alert-success"></div>
           <div class="search-bar">
             <input type="text" id="buscar-libro" placeholder="Buscar por título, autor o ISBN..." oninput="Utils.debounce('buscar-libro', ()=>{Catalogo._page=1; Catalogo.render()})">
             <button class="btn btn-primary" onclick="UI.abrirModal('modal-libro')">+ Agregar libro</button>
@@ -312,7 +312,6 @@
             <h2>Préstamos</h2>
             <p>Registrá nuevos préstamos y devoluciones</p>
           </div>
-          <div id="alert-prestamo" class="alert alert-success"></div>
           <div class="toolbar">
             <button class="btn btn-primary" onclick="UI.abrirModal('modal-prestamo')">+ Nuevo préstamo</button>
           </div>
@@ -352,7 +351,6 @@
             <h2>Usuarios</h2>
             <p>Gestión de alumnos, docentes y administrativos</p>
           </div>
-          <div id="alert-usuario" class="alert alert-success"></div>
           <div class="search-bar">
             <input type="text" id="buscar-usuario" placeholder="Buscar por nombre, DNI o tipo..." oninput="Utils.debounce('buscar-usuario', ()=>{Usuarios._page=1; Usuarios.render()})">
             <button class="btn btn-primary" onclick="Usuarios._prepararModalAgregar(); UI.abrirModal('modal-usuario')">+ Agregar usuario</button>
@@ -484,7 +482,7 @@
                 <button class="btn btn-primary" onclick="Config.guardar()">Guardar cambios</button>
               </div>
             </div>
-            <div id="alert-config" class="alert alert-success" style="margin-top:1rem"></div>
+            <!-- toasts used instead of inline alerts -->
             <div class="config-hint">
               <p><strong>Roles del sistema:</strong> El rol se determina por el tipo de usuario
               (Administrativo, Docente o Alumno). Los usuarios pueden crear su propia cuenta
@@ -624,7 +622,6 @@
   <div class="overlay" id="modal-usuario">
     <div class="modal">
       <h3 id="modal-usuario-titulo">👤 Agregar usuario</h3>
-      <div id="modal-usuario-error" class="alert alert-danger" style="margin-bottom:12px"></div>
       <div class="form-grid">
         <div class="form-group">
           <label>Nombre completo *</label>

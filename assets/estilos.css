@@ -662,24 +662,151 @@ tr:hover td { background: var(--td-hover); }
 }
 
 /* ════════════════════════════════════════════
-   ALERTAS
+   TOAST NOTIFICATIONS
    ════════════════════════════════════════════ */
-.alert {
-  padding: 10px 14px; border-radius: 6px;
-  font-size: 15px; font-weight: 500;
-  margin-bottom: 1rem; display: none;
-  transition: background 0.25s ease, color 0.25s ease;
+#toast-container {
+  position: fixed;
+  top: calc(var(--header-h) + 12px);
+  right: 16px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
 }
-.alert.show { display: block; }
-.alert-success {
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'DM Sans', 'Montserrat', sans-serif;
+  line-height: 1.4;
+  max-width: 380px;
+  min-width: 280px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  animation: toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.toast.toast-out {
+  animation: toast-out 0.3s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+.toast-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+.toast-close {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: inherit;
+  opacity: 0.4;
+  margin-left: auto;
+  transition: opacity 0.15s, background 0.15s;
+  font-size: 16px;
+  line-height: 1;
+}
+.toast-close:hover {
+  opacity: 0.8;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* Toast types */
+.toast-success {
   background: var(--alert-success-bg);
   color: var(--alert-success-txt);
-  border: 1px solid var(--alert-success-bdr);
+  border-color: var(--alert-success-bdr);
 }
-.alert-danger  {
+.toast-success .toast-icon {
+  background: var(--verde);
+  color: #fff;
+}
+.toast-danger {
   background: var(--alert-danger-bg);
   color: var(--alert-danger-txt);
-  border: 1px solid var(--alert-danger-bdr);
+  border-color: var(--alert-danger-bdr);
+}
+.toast-danger .toast-icon {
+  background: #EF4444;
+  color: #fff;
+}
+.toast-warning {
+  background: var(--badge-amarillo-bg);
+  color: var(--badge-amarillo-txt);
+  border-color: rgba(181, 71, 8, 0.2);
+}
+.toast-warning .toast-icon {
+  background: #F59E0B;
+  color: #fff;
+}
+.toast-info {
+  background: var(--badge-azul-bg);
+  color: var(--badge-azul-txt);
+  border-color: rgba(23, 92, 211, 0.2);
+}
+.toast-info .toast-icon {
+  background: #3B82F6;
+  color: #fff;
+}
+
+/* Progress bar */
+.toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 0 0 10px 10px;
+  animation: toast-progress var(--toast-dur, 3s) linear forwards;
+}
+.toast-success .toast-progress { background: var(--verde); }
+.toast-danger .toast-progress  { background: #EF4444; }
+.toast-warning .toast-progress { background: #F59E0B; }
+.toast-info .toast-progress    { background: #3B82F6; }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(40px) scale(0.95); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to   { opacity: 0; transform: translateX(40px) scale(0.95); }
+}
+@keyframes toast-progress {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+/* Toast responsive */
+@media (max-width: 480px) {
+  #toast-container {
+    top: auto;
+    bottom: 16px;
+    right: 12px;
+    left: 12px;
+  }
+  .toast {
+    max-width: 100%;
+    min-width: 0;
+  }
 }
 
 /* ════════════════════════════════════════════
@@ -742,7 +869,7 @@ tr:hover td { background: var(--td-hover); }
    TRANSITIONS GLOBALES (smooth theme switch)
    ════════════════════════════════════════════ */
 .sidebar, .stat-card, .table-card, .modal,
-.btn, .form-input, .form-select, .alert,
+.btn, .form-input, .form-select, .toast,
 header, .badge {
   transition: background 0.3s ease, border-color 0.3s ease,
               color 0.25s ease, box-shadow 0.3s ease;

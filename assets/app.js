@@ -403,13 +403,50 @@ const UI = {
   },
 
   mostrarAlerta(id, mensaje, tipo = "success", duracion = 3000) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.textContent = mensaje;
-    el.className = "alert alert-" + tipo + " show";
-    setTimeout(() => {
-      el.classList.remove("show");
-    }, duracion);
+    UI.toast(mensaje, tipo, duracion);
+  },
+
+  /**
+   * Muestra una notificacion toast.
+   * @param {string} mensaje  - Texto del toast
+   * @param {"success"|"danger"|"warning"|"info"} tipo - Tipo de toast
+   * @param {number} duracion - Duracion en ms (default 3000)
+   */
+  toast(mensaje, tipo = "success", duracion = 3000) {
+    const container = document.getElementById("toast-container");
+    if (!container) return;
+
+    const icons = {
+      success: "\u2713",  // ✓
+      danger:  "\u2717",  // ✗
+      warning: "\u26A0",  // ⚠
+      info:    "\u2139"   // ℹ
+    };
+
+    const el = document.createElement("div");
+    el.className = "toast toast-" + tipo;
+    el.style.position = "relative";
+    el.style.setProperty("--toast-dur", duracion + "ms");
+    el.innerHTML = `
+      <span class="toast-icon">${icons[tipo] || icons.info}</span>
+      <span class="toast-msg">${mensaje}</span>
+      <button class="toast-close" aria-label="Cerrar">\u00D7</button>
+      <div class="toast-progress"></div>
+    `;
+
+    const closeBtn = el.querySelector(".toast-close");
+    let timer = null;
+
+    function dismiss() {
+      if (timer) clearTimeout(timer);
+      el.classList.add("toast-out");
+      el.addEventListener("animationend", () => el.remove(), { once: true });
+    }
+
+    closeBtn.addEventListener("click", dismiss);
+    timer = setTimeout(dismiss, duracion);
+
+    container.appendChild(el);
   },
 
   /**
@@ -610,15 +647,12 @@ const Auth = {
     document.getElementById("form-login").style.display = "none";
     document.getElementById("form-registro").style.display = "";
     document.getElementById("login-subtitle-text").textContent = "Creá tu cuenta";
-    document.getElementById("login-error").className = "alert alert-danger";
-    document.getElementById("registro-error").className = "alert alert-danger";
   },
 
   mostrarLogin() {
     document.getElementById("form-login").style.display = "";
     document.getElementById("form-registro").style.display = "none";
     document.getElementById("login-subtitle-text").textContent = "Ingresá para continuar";
-    document.getElementById("registro-error").className = "alert alert-danger";
   },
 
   /**
@@ -632,37 +666,30 @@ const Auth = {
     const email    = document.getElementById("reg-email").value.trim();
     const password = document.getElementById("reg-password").value;
     const password2 = document.getElementById("reg-password2").value;
-    const errorEl  = document.getElementById("registro-error");
 
     // Validaciones
     if (!nombre) {
-      errorEl.textContent = "El nombre es obligatorio.";
-      errorEl.className = "alert alert-danger show";
+      UI.toast("El nombre es obligatorio.", "danger");
       return;
     }
     if (!dni) {
-      errorEl.textContent = "El DNI es obligatorio.";
-      errorEl.className = "alert alert-danger show";
+      UI.toast("El DNI es obligatorio.", "danger");
       return;
     }
     if (!email) {
-      errorEl.textContent = "El email es obligatorio.";
-      errorEl.className = "alert alert-danger show";
+      UI.toast("El email es obligatorio.", "danger");
       return;
     }
     if (password.length < 6) {
-      errorEl.textContent = "La contraseña debe tener al menos 6 caracteres.";
-      errorEl.className = "alert alert-danger show";
+      UI.toast("La contraseña debe tener al menos 6 caracteres.", "danger");
       return;
     }
     if (password !== password2) {
-      errorEl.textContent = "Las contraseñas no coinciden.";
-      errorEl.className = "alert alert-danger show";
+      UI.toast("Las contraseñas no coinciden.", "danger");
       return;
     }
 
     Utils.loading(true);
-    errorEl.className = "alert alert-danger";
 
     try {
       // 1) Crear la cuenta en Firebase Auth
@@ -697,8 +724,7 @@ const Auth = {
           msg = "La contraseña es demasiado debil (minimo 6 caracteres).";
           break;
       }
-      errorEl.textContent = msg;
-      errorEl.className = "alert alert-danger show";
+      UI.toast(msg, "danger");
     } finally {
       Utils.loading(false);
     }
@@ -710,16 +736,13 @@ const Auth = {
   async login() {
     const email    = document.getElementById("login-usuario").value.trim();
     const password = document.getElementById("login-password").value;
-    const errorEl  = document.getElementById("login-error");
 
     if (!email || !password) {
-      errorEl.textContent = "Completá email y contraseña.";
-      errorEl.className = "alert alert-danger show";
+      UI.toast("Completá email y contraseña.", "danger");
       return;
     }
 
     Utils.loading(true);
-    errorEl.className = "alert alert-danger";
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
@@ -740,8 +763,7 @@ const Auth = {
           msg = "Demasiados intentos. Espera unos minutos.";
           break;
       }
-      errorEl.textContent = msg;
-      errorEl.className = "alert alert-danger show";
+      UI.toast(msg, "danger");
     } finally {
       Utils.loading(false);
     }
@@ -809,7 +831,6 @@ const Auth = {
         // Limpiar formularios
         document.getElementById("login-usuario").value = "";
         document.getElementById("login-password").value = "";
-        document.getElementById("login-error").className = "alert alert-danger";
         this.mostrarLogin();
         document.getElementById("reg-nombre").value = "";
         document.getElementById("reg-dni").value = "";
@@ -1241,7 +1262,6 @@ const Usuarios = {
     document.getElementById("usu-password-label").textContent = "Contraseña";
     document.getElementById("usu-password-hint").style.display = "none";
     document.getElementById("usu-password-group").style.display = "";
-    document.getElementById("modal-usuario-error").className = "alert alert-danger";
 
     const btnGuardar = document.getElementById("btn-guardar-usuario");
     btnGuardar.textContent = "Guardar usuario";
@@ -1280,39 +1300,32 @@ const Usuarios = {
     const dni      = document.getElementById("usu-dni").value.trim();
     const email    = document.getElementById("usu-email").value.trim();
     const password = document.getElementById("usu-password").value;
-    const errorEl  = document.getElementById("modal-usuario-error");
 
     // Validaciones obligatorias
     if (!nombre) {
-      errorEl.textContent = "El nombre es obligatorio.";
-      errorEl.className = "alert alert-danger show";
+      UI.toast("El nombre es obligatorio.", "danger");
       return;
     }
     if (!dni) {
-      errorEl.textContent = "El DNI es obligatorio.";
-      errorEl.className = "alert alert-danger show";
+      UI.toast("El DNI es obligatorio.", "danger");
       return;
     }
 
     // Validaciones de cuenta de acceso (opcional)
     if (email && !password) {
-      errorEl.textContent = "Si ingresas un email, también debes ingresar una contraseña.";
-      errorEl.className = "alert alert-danger show";
+      UI.toast("Si ingresas un email, también debes ingresar una contraseña.", "danger");
       return;
     }
     if (!email && password) {
-      errorEl.textContent = "Si ingresas una contraseña, también debes ingresar un email.";
-      errorEl.className = "alert alert-danger show";
+      UI.toast("Si ingresas una contraseña, también debes ingresar un email.", "danger");
       return;
     }
     if (password && password.length < 6) {
-      errorEl.textContent = "La contraseña debe tener al menos 6 caracteres.";
-      errorEl.className = "alert alert-danger show";
+      UI.toast("La contraseña debe tener al menos 6 caracteres.", "danger");
       return;
     }
 
     Utils.loading(true);
-    errorEl.className = "alert alert-danger";
 
     try {
       let authUid = null;
@@ -1332,11 +1345,10 @@ const Usuarios = {
               authUid = result.authUid;
             } catch (linkError) {
               if (linkError.code === "auth/wrong-password" || linkError.code === "auth/invalid-credential") {
-                errorEl.textContent = "El email ya existe en Firebase Auth pero la contraseña no coincide. Verificá los datos o consultá al administrador del proyecto.";
+                UI.toast("El email ya existe en Firebase Auth pero la contraseña no coincide. Verificá los datos o consultá al administrador del proyecto.", "danger");
               } else {
-                errorEl.textContent = "No se pudo vincular la cuenta existente. Error: " + (linkError.code || linkError.message);
+                UI.toast("No se pudo vincular la cuenta existente. Error: " + (linkError.code || linkError.message), "danger");
               }
-              errorEl.className = "alert alert-danger show";
               Utils.loading(false);
               return;
             }
@@ -1350,8 +1362,7 @@ const Usuarios = {
                 msg = "La contraseña es demasiado debil (minimo 6 caracteres).";
                 break;
             }
-            errorEl.textContent = msg;
-            errorEl.className = "alert alert-danger show";
+            UI.toast(msg, "danger");
             Utils.loading(false);
             return;
           }
@@ -1403,7 +1414,6 @@ const Usuarios = {
       document.getElementById("usu-nombre").value = data.nombre || "";
       document.getElementById("usu-tipo").value = data.tipo || "Alumno";
       document.getElementById("usu-dni").value = data.dni || "";
-      document.getElementById("modal-usuario-error").className = "alert alert-danger";
 
       // Configurar campos de email/contraseña segun si tiene cuenta
       if (tieneCuenta) {
@@ -1454,21 +1464,17 @@ const Usuarios = {
     const dni      = document.getElementById("usu-dni").value.trim();
     const email    = document.getElementById("usu-email").value.trim();
     const password = document.getElementById("usu-password").value;
-    const errorEl  = document.getElementById("modal-usuario-error");
 
     if (!nombre) {
-      errorEl.textContent = "El nombre es obligatorio.";
-      errorEl.className = "alert alert-danger show";
+      UI.toast("El nombre es obligatorio.", "danger");
       return;
     }
     if (!dni) {
-      errorEl.textContent = "El DNI es obligatorio.";
-      errorEl.className = "alert alert-danger show";
+      UI.toast("El DNI es obligatorio.", "danger");
       return;
     }
 
     Utils.loading(true);
-    errorEl.className = "alert alert-danger";
 
     try {
       // Obtener datos actuales del documento
@@ -1482,8 +1488,7 @@ const Usuarios = {
       // Si NO tiene cuenta y se ingresaron email + contraseña, crear cuenta Auth
       if (!tieneCuenta && email && password) {
         if (password.length < 6) {
-          errorEl.textContent = "La contraseña debe tener al menos 6 caracteres.";
-          errorEl.className = "alert alert-danger show";
+          UI.toast("La contraseña debe tener al menos 6 caracteres.", "danger");
           Utils.loading(false);
           return;
         }
@@ -1502,11 +1507,10 @@ const Usuarios = {
               datosActualizar.email = email;
             } catch (linkError) {
               if (linkError.code === "auth/wrong-password" || linkError.code === "auth/invalid-credential") {
-                errorEl.textContent = "El email ya existe en Firebase Auth pero la contraseña no coincide. Verificá los datos o consultá al administrador del proyecto.";
+                UI.toast("El email ya existe en Firebase Auth pero la contraseña no coincide. Verificá los datos o consultá al administrador del proyecto.", "danger");
               } else {
-                errorEl.textContent = "No se pudo vincular la cuenta existente. Error: " + (linkError.code || linkError.message);
+                UI.toast("No se pudo vincular la cuenta existente. Error: " + (linkError.code || linkError.message), "danger");
               }
-              errorEl.className = "alert alert-danger show";
               Utils.loading(false);
               return;
             }
@@ -1520,8 +1524,7 @@ const Usuarios = {
                 msg = "La contraseña es demasiado debil.";
                 break;
             }
-            errorEl.textContent = msg;
-            errorEl.className = "alert alert-danger show";
+            UI.toast(msg, "danger");
             Utils.loading(false);
             return;
           }
