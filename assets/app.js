@@ -1168,12 +1168,8 @@ const Catalogo = {
     if (!container) return;
 
     if (coverURL) {
-      // Use wsrv.nl for resizing custom URLs, direct for Open Library URLs
-      let imgURL = coverURL;
-      if (!coverURL.includes("openlibrary.org")) {
-        imgURL = `https://wsrv.nl/?url=${encodeURIComponent(coverURL)}&w=400&h=560&fit=cover`;
-      }
-      container.innerHTML = `<div class="libro-cover-wrap"><img src="${Utils._escAttr(imgURL)}" alt="Portada" onerror="this.parentElement.innerHTML=Catalogo._placeholderHTML()"></div>`;
+      // Use direct URL — CSS object-fit: cover handles resizing
+      container.innerHTML = `<div class="libro-cover-wrap"><img src="${Utils._escAttr(coverURL)}" alt="Portada" onerror="this.parentElement.innerHTML=Catalogo._placeholderHTML()"></div>`;
     } else {
       container.innerHTML = `<div class="libro-cover-wrap">${this._placeholderHTML()}</div>`;
     }
@@ -1300,12 +1296,25 @@ const Catalogo = {
       return;
     }
 
+    if (!this._currentDetailId) {
+      UI.toast("No se pudo guardar la portada.", "danger");
+      return;
+    }
+
     // Quick validation - try loading the image
     const img = new Image();
-    img.onload = () => {
-      UI.toast("URL de portada guardada (se aplica al guardar cambios).", "success");
-      document.getElementById("btn-eliminar-portada").disabled = false;
-      this.previewCoverURL();
+    img.onload = async () => {
+      try {
+        // Save to Firestore immediately
+        await updateDoc(doc(db, this.coleccion, this._currentDetailId), { coverURL: url });
+        UI.toast("Portada guardada correctamente.", "success");
+        document.getElementById("btn-eliminar-portada").disabled = false;
+        // Update cover in view mode
+        this._renderCover(url, "libro-cover-container");
+      } catch (err) {
+        console.error("Error al guardar coverURL:", err);
+        UI.toast("Error al guardar la portada.", "danger");
+      }
     };
     img.onerror = () => {
       UI.toast("No se pudo cargar la imagen. Verificá la URL.", "danger");
@@ -1320,11 +1329,8 @@ const Catalogo = {
       preview.style.display = "none";
       return;
     }
-    let imgURL = url;
-    if (!url.includes("openlibrary.org")) {
-      imgURL = `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=400&h=560&fit=cover`;
-    }
-    preview.innerHTML = `<img src="${Utils._escAttr(imgURL)}" alt="Preview" onerror="document.getElementById('libro-cover-edit-preview').style.display='none'">`;
+    // Use direct URL — CSS object-fit: cover handles resizing
+    preview.innerHTML = `<img src="${Utils._escAttr(url)}" alt="Preview" onerror="document.getElementById('libro-cover-edit-preview').style.display='none'">`;
     preview.style.display = "";
   },
 
@@ -1332,7 +1338,19 @@ const Catalogo = {
     document.getElementById("libro-cover-url").value = "";
     document.getElementById("libro-cover-edit-preview").style.display = "none";
     document.getElementById("btn-eliminar-portada").disabled = true;
-    UI.toast("Portada eliminada (se aplica al guardar cambios).", "info");
+
+    if (!this._currentDetailId) return;
+
+    try {
+      // Remove from Firestore immediately
+      await updateDoc(doc(db, this.coleccion, this._currentDetailId), { coverURL: "" });
+      UI.toast("Portada eliminada.", "info");
+      // Update cover in view mode
+      this._renderCover("", "libro-cover-container");
+    } catch (err) {
+      console.error("Error al eliminar coverURL:", err);
+      UI.toast("Error al eliminar la portada.", "danger");
+    }
   },
 
   async eliminar(id, titulo) {
