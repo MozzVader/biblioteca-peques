@@ -1261,6 +1261,82 @@ th.sortable.desc .sort-arrow {
 }
 
 /* ════════════════════════════════════════════════════════
+   BULK ACTIONS BAR
+   ════════════════════════════════════════════════════════ */
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 1.25rem;
+  background: var(--badge-amarillo-bg);
+  border-bottom: 1px solid var(--borde-suave);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--texto-medio);
+  animation: bulk-bar-in 0.2s ease;
+}
+@keyframes bulk-bar-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ════════════════════════════════════════════════════════
+   CUSTOM CHECKBOX (supports light/dark)
+   ════════════════════════════════════════════════════════ */
+.checkbox-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  width: 18px;
+  height: 18px;
+}
+.checkbox-wrap input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.checkbox-wrap .checkmark {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--gris-300);
+  border-radius: 3px;
+  background: var(--glass-bg-solid);
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.checkbox-wrap .checkmark::after {
+  content: '';
+  width: 4px;
+  height: 8px;
+  border: solid transparent;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0);
+  transition: transform 0.12s ease;
+  margin-top: -2px;
+}
+.checkbox-wrap input[type="checkbox"]:checked + .checkmark {
+  background: var(--verde);
+  border-color: var(--verde);
+}
+.checkbox-wrap input[type="checkbox"]:checked + .checkmark::after {
+  border-color: #fff;
+  transform: rotate(45deg) scale(1);
+}
+.checkbox-wrap:hover .checkmark {
+  border-color: var(--verde);
+}
+
+/* Bulk header cell */
+.th-bulk {
+  padding: 10px 8px !important;
+}
+
+/* ════════════════════════════════════════════════════════
    FEATURE 1: NOTIFICATION BELL & DROPDOWN
    ════════════════════════════════════════════════════════ */
 .notif-wrapper {

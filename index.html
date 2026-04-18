@@ -288,14 +288,26 @@
           <!-- END FEATURE 3 -->
           <div class="table-card">
             <!-- FEATURE 5: Sortable headers + table id -->
+            <!-- Bulk actions bar -->
+            <div id="catalogo-bulk-bar" style="display:none" class="bulk-bar">
+              <span id="catalogo-bulk-count">0 seleccionados</span>
+              <button class="btn btn-sm btn-danger" onclick="Catalogo.eliminarSeleccionados()">Eliminar selección</button>
+              <button class="btn btn-sm" onclick="Catalogo.deseleccionarTodos()">Cancelar</button>
+            </div>
             <table id="tabla-catalogo-wrapper">
               <thead>
                 <tr>
+                  <th style="width:40px;text-align:center" class="th-bulk">
+                    <label class="checkbox-wrap">
+                      <input type="checkbox" id="catalogo-select-all" onchange="Catalogo.toggleSeleccionarTodos(this.checked)">
+                      <span class="checkmark"></span>
+                    </label>
+                  </th>
                   <th class="sortable" data-sort="titulo">Título <span class="sort-arrow"></span></th>
                   <th class="sortable" data-sort="autor">Autor <span class="sort-arrow"></span></th>
                   <th class="sortable" data-sort="genero">Género <span class="sort-arrow"></span></th>
                   <th class="sortable" data-sort="ejemplares">Ejemplares <span class="sort-arrow"></span></th>
-                  <th class="sortable" data-sort="disponibles">Disponibles <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="disponibles" style="text-align:center">Disponibles <span class="sort-arrow"></span></th>
                 </tr>
               </thead>
               <tbody id="tabla-catalogo"></tbody>

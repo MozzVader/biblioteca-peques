@@ -966,6 +966,7 @@ const Catalogo = {
   _page: 1,
   _perPage: 20,
   _filtroGenero: "",
+  _selectedIds: new Set(),
 
   async render() {
     const tbody = document.getElementById("tabla-catalogo");
@@ -1011,6 +1012,10 @@ const Catalogo = {
       const start = (this._page - 1) * this._perPage;
       const pageData = sorted.slice(start, start + this._perPage);
 
+      // Reset select-all checkbox
+      const selectAllCb = document.getElementById("catalogo-select-all");
+      if (selectAllCb) selectAllCb.checked = false;
+
       let html = "";
       pageData.forEach((item) => {
         let badgeHTML;
@@ -1022,24 +1027,32 @@ const Catalogo = {
           badgeHTML = `<span class="badge badge-verde">${item.disponibles}</span>`;
         }
 
+        const checked = this._selectedIds.has(item.id) ? "checked" : "";
         html += `
           <tr onclick="Catalogo.verDetalle('${item.id}')">
+            <td style="text-align:center" onclick="event.stopPropagation()">
+              <label class="checkbox-wrap">
+                <input type="checkbox" data-id="${item.id}" ${checked} onchange="Catalogo.toggleSeleccion('${item.id}', this.checked)">
+                <span class="checkmark"></span>
+              </label>
+            </td>
             <td><strong>${Utils._esc(item.titulo)}</strong></td>
             <td>${Utils._esc(item.autor)}</td>
             <td>${Utils._esc(item.genero || "—")}</td>
             <td>${item.ejemplares || 0}</td>
-            <td>${badgeHTML}</td>
+            <td style="text-align:center">${badgeHTML}</td>
           </tr>`;
       });
 
       if (!html) {
-        html = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--texto-muted)">
+        html = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--texto-muted)">
           ${filtro || filtroGenero ? "No se encontraron resultados." : "Aun no hay libros en el catalogo."}
         </td></tr>`;
       }
 
       tbody.innerHTML = html;
       Roles.aplicarBotones("catalogo");
+      this._updateBulkBar();
 
       // Pagination controls
       Utils.renderPagination("pagination-catalogo", sorted.length, this._page, this._perPage, (page) => {
@@ -1056,7 +1069,7 @@ const Catalogo = {
       });
     } catch (error) {
       console.error("Error al cargar catalogo:", error);
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#B42318">
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#B42318">
         Error al cargar datos. Verifica la conexion con Firebase.
       </td></tr>`;
     }
@@ -1350,6 +1363,106 @@ const Catalogo = {
     } catch (err) {
       console.error("Error al eliminar coverURL:", err);
       UI.toast("Error al eliminar la portada.", "danger");
+    }
+  },
+
+  // ══════════════════════════════════════════════════════════════
+  //  SELECCIÓN MASIVA — Checkbox bulk operations
+  // ══════════════════════════════════════════════════════════════
+
+  toggleSeleccion(id, checked) {
+    if (checked) {
+      this._selectedIds.add(id);
+    } else {
+      this._selectedIds.delete(id);
+    }
+    this._syncSelectAll();
+    this._updateBulkBar();
+  },
+
+  toggleSeleccionarTodos(checked) {
+    const checkboxes = document.querySelectorAll("#tabla-catalogo input[type=checkbox][data-id]");
+    checkboxes.forEach(cb => {
+      cb.checked = checked;
+      if (checked) {
+        this._selectedIds.add(cb.dataset.id);
+      } else {
+        this._selectedIds.delete(cb.dataset.id);
+      }
+    });
+    this._updateBulkBar();
+  },
+
+  deseleccionarTodos() {
+    this._selectedIds.clear();
+    const checkboxes = document.querySelectorAll("#tabla-catalogo input[type=checkbox][data-id]");
+    checkboxes.forEach(cb => { cb.checked = false; });
+    const selectAllCb = document.getElementById("catalogo-select-all");
+    if (selectAllCb) selectAllCb.checked = false;
+    this._updateBulkBar();
+  },
+
+  _syncSelectAll() {
+    const checkboxes = document.querySelectorAll("#tabla-catalogo input[type=checkbox][data-id]");
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+    const selectAllCb = document.getElementById("catalogo-select-all");
+    if (selectAllCb) selectAllCb.checked = allChecked;
+  },
+
+  _updateBulkBar() {
+    const bar = document.getElementById("catalogo-bulk-bar");
+    const count = document.getElementById("catalogo-bulk-count");
+    if (!bar || !count) return;
+
+    if (Roles.puede("eliminarLibro") && this._selectedIds.size > 0) {
+      count.textContent = `${this._selectedIds.size} seleccionados`;
+      bar.style.display = "flex";
+    } else {
+      bar.style.display = "none";
+    }
+  },
+
+  async eliminarSeleccionados() {
+    const count = this._selectedIds.size;
+    if (count === 0) return;
+    if (!confirm(`Estas seguro de eliminar ${count} libro${count > 1 ? "s" : ""}?`)) return;
+
+    Utils.loading(true);
+    let eliminados = 0;
+    let conPrestamos = 0;
+    const ids = [...this._selectedIds];
+
+    try {
+      // Check for active loans first
+      for (const id of ids) {
+        const q = query(
+          collection(db, "prestamos"),
+          where("libroId", "==", id),
+          where("estado", "==", "activo")
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          conPrestamos++;
+          continue;
+        }
+        await deleteDoc(doc(db, this.coleccion, id));
+        AuditLog.registrar("eliminar", "libro", id, "Libro eliminado (selección masiva)");
+        eliminados++;
+      }
+
+      this._selectedIds.clear();
+      this.render();
+
+      if (conPrestamos > 0) {
+        UI.toast(`${eliminados} eliminado${eliminados !== 1 ? "s" : ""}. ${conPrestamos} no se pudo${conPrestamos !== 1 ? "ron" : ""} eliminar (tienen préstamos activos).`, "warning");
+      } else {
+        UI.toast(`${eliminados} libro${eliminados !== 1 ? "s" : ""} eliminado${eliminados !== 1 ? "s" : ""}.`);
+      }
+    } catch (error) {
+      console.error("Error al eliminar en masa:", error);
+      UI.toast("Error al eliminar los libros.", "danger");
+    } finally {
+      Utils.loading(false);
     }
   },
 
