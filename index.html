@@ -274,7 +274,7 @@
           </div>
           <div class="search-bar">
             <input type="text" id="buscar-libro" placeholder="Buscar por título, autor o ISBN..." oninput="Utils.debounce('buscar-libro', ()=>{Catalogo._page=1; Catalogo.render()})">
-            <button class="btn btn-primary" onclick="UI.abrirModal('modal-libro')">+ Agregar libro</button>
+            <button class="btn btn-primary" onclick="UI.abrirModal('modal-agregar-libro')">+ Agregar libro</button>
           </div>
           <!-- FEATURE 3: Filter bar -->
           <div class="filter-bar">
@@ -296,7 +296,6 @@
                   <th class="sortable" data-sort="genero">Género <span class="sort-arrow"></span></th>
                   <th class="sortable" data-sort="ejemplares">Ejemplares <span class="sort-arrow"></span></th>
                   <th class="sortable" data-sort="disponibles">Disponibles <span class="sort-arrow"></span></th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody id="tabla-catalogo"></tbody>
@@ -572,47 +571,154 @@
        MODALES
   ════════════════════════════════════════ -->
 
-  <!-- Modal: Nuevo libro -->
-  <div class="overlay" id="modal-libro">
-    <div class="modal">
-      <h3>📖 Agregar libro</h3>
+  <!-- Modal: Detalle / Editar libro -->
+  <div class="overlay" id="modal-libro" onclick="UI.cerrarModal('modal-libro')">
+    <div class="modal modal-libro-detalle" onclick="event.stopPropagation()">
+
+      <!-- Close button -->
+      <button class="modal-close-btn" onclick="UI.cerrarModal('modal-libro')">&#10005;</button>
+
+      <!-- VIEW MODE (default) -->
+      <div id="libro-view-mode">
+        <div class="libro-detalle-layout">
+          <!-- Portada -->
+          <div class="libro-detalle-cover">
+            <div class="libro-cover-wrap" id="libro-cover-container"></div>
+          </div>
+          <!-- Info -->
+          <div class="libro-detalle-info">
+            <h3 id="libro-det-titulo" class="libro-det-titulo">&mdash;</h3>
+            <div class="libro-detalle-meta">
+              <div class="libro-det-field">
+                <span class="libro-det-label">Autor</span>
+                <span class="libro-det-value" id="libro-det-autor">&mdash;</span>
+              </div>
+              <div class="libro-det-field">
+                <span class="libro-det-label">ISBN</span>
+                <span class="libro-det-value" id="libro-det-isbn">&mdash;</span>
+              </div>
+              <div class="libro-det-field">
+                <span class="libro-det-label">Género</span>
+                <span class="libro-det-value" id="libro-det-genero">&mdash;</span>
+              </div>
+              <div class="libro-det-row">
+                <div class="libro-det-field">
+                  <span class="libro-det-label">Ejemplares</span>
+                  <span class="libro-det-value" id="libro-det-ejemplares">&mdash;</span>
+                </div>
+                <div class="libro-det-field">
+                  <span class="libro-det-label">Disponibles</span>
+                  <span class="libro-det-value" id="libro-det-disponibles">&mdash;</span>
+                </div>
+              </div>
+            </div>
+            <!-- Action buttons (shown only with permissions) -->
+            <div class="libro-detalle-actions" id="libro-det-actions">
+              <button class="btn btn-danger" id="btn-det-eliminar" onclick="Catalogo.eliminarDesdeModal()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Eliminar
+              </button>
+              <button class="btn btn-primary" onclick="Catalogo.activarModoEdicion()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Editar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EDIT MODE -->
+      <div id="libro-edit-mode" style="display:none">
+        <h3>Editar libro</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Título *</label>
+            <input class="form-input" id="libro-titulo" type="text" placeholder="Título del libro">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Autor *</label>
+              <input class="form-input" id="libro-autor" type="text" placeholder="Autor">
+            </div>
+            <div class="form-group">
+              <label>ISBN</label>
+              <input class="form-input" id="libro-isbn" type="text" placeholder="ISBN">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Género</label>
+              <select class="form-select" id="libro-genero">
+                <option>Literatura</option><option>Novela</option><option>Texto escolar</option>
+                <option>Historia</option><option>Ciencias</option><option>Matemática</option>
+                <option>Arte</option><option>Otro</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Cantidad de ejemplares</label>
+              <input class="form-input" id="libro-ejemplares" type="number" value="1" min="1">
+            </div>
+          </div>
+          <!-- Cover URL management -->
+          <div class="form-group">
+            <label>URL de portada</label>
+            <div style="display:flex;gap:8px;align-items:start">
+              <input class="form-input" id="libro-cover-url" type="url" placeholder="https://ejemplo.com/portada.jpg" style="flex:1">
+              <button class="btn" onclick="Catalogo.guardarCoverURL()" title="Guardar URL">OK</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:6px" id="libro-cover-actions" class="libro-cover-actions">
+              <button class="btn btn-sm" onclick="Catalogo.previewCoverURL()" style="font-size:12px">Preview</button>
+              <button class="btn btn-sm btn-danger" onclick="Catalogo.eliminarPortada()" style="font-size:12px" id="btn-eliminar-portada" disabled>Eliminar portada</button>
+            </div>
+            <!-- Cover preview in edit mode -->
+            <div class="libro-cover-edit-preview" id="libro-cover-edit-preview" style="display:none"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" onclick="Catalogo.cancelarEdicion()">Cancelar</button>
+          <button class="btn btn-primary" id="btn-guardar-edicion">Actualizar libro</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal: Agregar libro (nuevo, separado del detalle) -->
+  <div class="overlay" id="modal-agregar-libro" onclick="UI.cerrarModal('modal-agregar-libro')">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3>Agregar libro</h3>
       <div class="form-grid">
         <div class="form-group">
           <label>Título *</label>
-          <input class="form-input" id="libro-titulo" type="text" placeholder="Título del libro">
+          <input class="form-input" id="nuevo-libro-titulo" type="text" placeholder="Título del libro">
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Autor *</label>
-            <input class="form-input" id="libro-autor" type="text" placeholder="Autor">
+            <input class="form-input" id="nuevo-libro-autor" type="text" placeholder="Autor">
           </div>
           <div class="form-group">
             <label>ISBN</label>
-            <input class="form-input" id="libro-isbn" type="text" placeholder="ISBN">
+            <input class="form-input" id="nuevo-libro-isbn" type="text" placeholder="ISBN">
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Género</label>
-            <select class="form-select" id="libro-genero">
-              <option>Literatura</option>
-              <option>Novela</option>
-              <option>Texto escolar</option>
-              <option>Historia</option>
-              <option>Ciencias</option>
-              <option>Matemática</option>
-              <option>Arte</option>
-              <option>Otro</option>
+            <select class="form-select" id="nuevo-libro-genero">
+              <option>Literatura</option><option>Novela</option><option>Texto escolar</option>
+              <option>Historia</option><option>Ciencias</option><option>Matemática</option>
+              <option>Arte</option><option>Otro</option>
             </select>
           </div>
           <div class="form-group">
             <label>Cantidad de ejemplares</label>
-            <input class="form-input" id="libro-ejemplares" type="number" value="1" min="1">
+            <input class="form-input" id="nuevo-libro-ejemplares" type="number" value="1" min="1">
           </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn" onclick="UI.cerrarModal('modal-libro')">Cancelar</button>
+        <button class="btn" onclick="UI.cerrarModal('modal-agregar-libro')">Cancelar</button>
         <button class="btn btn-primary" onclick="Catalogo.agregar()">Guardar libro</button>
       </div>
     </div>
@@ -740,6 +846,13 @@
         </div>
 
         <div id="carga-errores" style="display:none;margin-top:12px;padding:10px 14px;background:#FEF3F2;border:1px solid #FECDC9;border-radius:8px;font-size:0.78rem;color:#A32D2D"></div>
+
+        <!-- Checkbox: Buscar ISBN automáticamente -->
+        <label class="carga-isbn-toggle">
+          <input type="checkbox" id="carga-buscar-isbn">
+          <span class="carga-isbn-toggle-slider"></span>
+          <span>Buscar ISBN y portada automáticamente (Open Library)</span>
+        </label>
 
         <div style="display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 14px;background:var(--gris-100);border-radius:8px;font-size:0.78rem;color:var(--texto-muted)">
           <svg width="16" height="16" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="7"/><path d="M8 5v3.5l2.5 1.5" stroke-linecap="round"/></svg>

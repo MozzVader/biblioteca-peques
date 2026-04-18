@@ -606,11 +606,6 @@ const Roles = {
       case "catalogo": {
         const btnAgregarLibro = document.querySelector("#sec-catalogo .search-bar .btn-primary");
         if (btnAgregarLibro) btnAgregarLibro.style.display = this.puede("agregarLibro") ? "" : "none";
-        document.querySelectorAll("#tabla-catalogo .btn-sm, #tabla-catalogo .btn-danger").forEach(btn => {
-          if (btn.textContent.trim() === "" || btn.title === "Editar" || btn.title === "Eliminar") {
-            btn.style.display = this.puede("editarLibro") ? "" : "none";
-          }
-        });
         break;
       }
 
@@ -847,6 +842,122 @@ const Auth = {
 //  CATALOGO — CRUD de Libros (with filter, sort, pagination)
 // ══════════════════════════════════════════════════════════════
 
+// ══════════════════════════════════════════════════════════════
+//  OPEN LIBRARY API — Covers & ISBN search
+// ══════════════════════════════════════════════════════════════
+
+const OpenLibraryAPI = {
+  _baseUrl: "https://openlibrary.org",
+
+  /**
+   * Builds the cover URL for a given ISBN.
+   * Returns empty string if no ISBN.
+   */
+  coverURL(isbn, size = "M") {
+    if (!isbn) return "";
+    return `https://covers.openlibrary.org/b/isbn/${isbn}-${size}.jpg`;
+  },
+
+  /**
+   * Checks if a cover exists for the given ISBN.
+   * Returns the cover URL or empty string.
+   */
+  async buscarPortada(isbn) {
+    if (!isbn) return "";
+    try {
+      const url = this.coverURL(isbn, "S");
+      const response = await fetch(url, { method: "HEAD" });
+      if (response.ok) {
+        return this.coverURL(isbn, "M");
+      }
+      return "";
+    } catch {
+      return "";
+    }
+  },
+
+  /**
+   * Searches Open Library for ISBN by title and author.
+   * Returns the first ISBN found, or empty string.
+   */
+  async buscarISBN(titulo, autor) {
+    if (!titulo) return "";
+    try {
+      const params = new URLSearchParams({
+        title: titulo,
+        limit: "5"
+      });
+      if (autor) params.set("author", autor);
+
+      const response = await fetch(`${this._baseUrl}/search.json?${params}`);
+      if (!response.ok) return "";
+
+      const data = await response.json();
+      if (!data.docs || data.docs.length === 0) return "";
+
+      // Try to find a result with ISBN
+      for (const doc of data.docs) {
+        const isbn = doc.isbn?.[0] || doc.isbn_13?.[0] || doc.isbn_10?.[0] || "";
+        if (isbn) return isbn;
+      }
+
+      return "";
+    } catch {
+      return "";
+    }
+  },
+
+  /**
+   * Sleep utility for rate limiting (Open Library asks 1 req/sec).
+   */
+  _sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  },
+
+  /**
+   * Searches ISBN and cover for a batch of books.
+   * Returns an object mapping row index -> { isbn, coverURL }.
+   * Respects Open Library rate limit (1 req/sec).
+   */
+  async buscarLote(libros) {
+    const resultados = {};
+    for (let i = 0; i < libros.length; i++) {
+      const libro = libros[i];
+      if (!libro.isbn) {
+        // Search ISBN by title/author
+        const isbn = await this.buscarISBN(libro.titulo, libro.autor);
+        if (isbn) {
+          resultados[i] = { isbn };
+          // Now search for cover
+          await this._sleep(1100); // rate limit
+          const coverURL = await this.buscarPortada(isbn);
+          if (coverURL) {
+            resultados[i].coverURL = coverURL;
+          }
+        }
+      } else {
+        // ISBN already provided, just search for cover
+        const coverURL = await this.buscarPortada(libro.isbn);
+        if (coverURL) {
+          resultados[i] = { coverURL };
+        }
+      }
+      // Rate limit between requests
+      if (i < libros.length - 1) {
+        await this._sleep(1100);
+      }
+    }
+    return resultados;
+  }
+};
+
+window.OpenLibraryAPI = OpenLibraryAPI;
+
+
+// ══════════════════════════════════════════════════════════════
+//  CATALOGO — CRUD de Libros (with filter, sort, pagination)
+// ══════════════════════════════════════════════════════════════
+
 const Catalogo = {
   coleccion: "libros",
   _data: [],
@@ -912,21 +1023,17 @@ const Catalogo = {
         }
 
         html += `
-          <tr>
+          <tr onclick="Catalogo.verDetalle('${item.id}')">
             <td><strong>${Utils._esc(item.titulo)}</strong></td>
             <td>${Utils._esc(item.autor)}</td>
             <td>${Utils._esc(item.genero || "—")}</td>
             <td>${item.ejemplares || 0}</td>
             <td>${badgeHTML}</td>
-            <td>
-              <button class="btn btn-sm" onclick="Catalogo.editar('${item.id}')" title="Editar">&#9998;</button>
-              <button class="btn btn-sm btn-danger" onclick="Catalogo.eliminar('${item.id}', '${Utils._escAttr(item.titulo)}')" title="Eliminar">&#10005;</button>
-            </td>
           </tr>`;
       });
 
       if (!html) {
-        html = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--texto-muted)">
+        html = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--texto-muted)">
           ${filtro || filtroGenero ? "No se encontraron resultados." : "Aun no hay libros en el catalogo."}
         </td></tr>`;
       }
@@ -949,80 +1056,195 @@ const Catalogo = {
       });
     } catch (error) {
       console.error("Error al cargar catalogo:", error);
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#B42318">
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#B42318">
         Error al cargar datos. Verifica la conexion con Firebase.
       </td></tr>`;
     }
   },
 
   async agregar() {
-    const titulo = document.getElementById("libro-titulo").value.trim();
-    const autor = document.getElementById("libro-autor").value.trim();
-    const isbn = document.getElementById("libro-isbn").value.trim();
-    const genero = document.getElementById("libro-genero").value;
-    const ejemplares = parseInt(document.getElementById("libro-ejemplares").value) || 1;
+    const titulo = document.getElementById("nuevo-libro-titulo").value.trim();
+    const autor = document.getElementById("nuevo-libro-autor").value.trim();
+    const isbn = document.getElementById("nuevo-libro-isbn").value.trim();
+    const genero = document.getElementById("nuevo-libro-genero").value;
+    const ejemplares = parseInt(document.getElementById("nuevo-libro-ejemplares").value) || 1;
 
     if (!titulo) {
-      UI.mostrarAlerta("alert-libro", "El titulo es obligatorio.", "danger");
+      UI.toast("El titulo es obligatorio.", "danger");
       return;
     }
     if (!autor) {
-      UI.mostrarAlerta("alert-libro", "El autor es obligatorio.", "danger");
+      UI.toast("El autor es obligatorio.", "danger");
       return;
     }
 
     Utils.loading(true);
 
     try {
+      // If ISBN provided, try to get cover from Open Library
+      let coverURL = "";
+      if (isbn) {
+        coverURL = await OpenLibraryAPI.buscarPortada(isbn);
+      }
+
       await addDoc(collection(db, this.coleccion), {
         titulo, autor,
         isbn: isbn || "",
         genero, ejemplares,
         disponibles: ejemplares,
+        coverURL,
         createdAt: serverTimestamp()
       });
 
       AuditLog.registrar("crear", "libro", null, `Libro "${titulo}" creado (${ejemplares} ejemplares, género: ${genero})`);
 
-      document.getElementById("libro-titulo").value = "";
-      document.getElementById("libro-autor").value = "";
-      document.getElementById("libro-isbn").value = "";
-      document.getElementById("libro-genero").selectedIndex = 0;
-      document.getElementById("libro-ejemplares").value = "1";
-      UI.cerrarModal("modal-libro");
-      UI.mostrarAlerta("alert-libro", `Libro "${titulo}" agregado correctamente.`);
+      document.getElementById("nuevo-libro-titulo").value = "";
+      document.getElementById("nuevo-libro-autor").value = "";
+      document.getElementById("nuevo-libro-isbn").value = "";
+      document.getElementById("nuevo-libro-genero").selectedIndex = 0;
+      document.getElementById("nuevo-libro-ejemplares").value = "1";
+      UI.cerrarModal("modal-agregar-libro");
+      UI.toast(`Libro "${titulo}" agregado correctamente.`);
       this.render();
     } catch (error) {
       console.error("Error al agregar libro:", error);
-      UI.mostrarAlerta("alert-libro", "Error al guardar el libro. Intenta de nuevo.", "danger");
+      UI.toast("Error al guardar el libro. Intenta de nuevo.", "danger");
     } finally {
       Utils.loading(false);
     }
   },
 
-  async editar(id) {
+  // ── Detail Modal ──
+
+  _currentDetailId: null,
+
+  async verDetalle(id) {
     try {
       const docSnap = await getDoc(doc(db, this.coleccion, id));
       if (!docSnap.exists()) return;
 
       const data = docSnap.data();
+      this._currentDetailId = id;
+
+      // Fill view mode
+      document.getElementById("libro-det-titulo").textContent = data.titulo || "—";
+      document.getElementById("libro-det-autor").textContent = data.autor || "—";
+      document.getElementById("libro-det-isbn").textContent = data.isbn || "—";
+      document.getElementById("libro-det-genero").textContent = data.genero || "—";
+      document.getElementById("libro-det-ejemplares").textContent = data.ejemplares || 0;
+
+      const disponibles = data.disponibles ?? data.ejemplares ?? 0;
+      const dispEl = document.getElementById("libro-det-disponibles");
+      dispEl.textContent = disponibles;
+      // Reuse badge styles for availability
+      if (disponibles <= 0) {
+        dispEl.innerHTML = `<span class="badge badge-rojo">Sin stock</span>`;
+      } else if (disponibles < (data.ejemplares || 1)) {
+        dispEl.innerHTML = `<span class="badge badge-amarillo">${disponibles}</span>`;
+      } else {
+        dispEl.innerHTML = `<span class="badge badge-verde">${disponibles}</span>`;
+      }
+
+      // Cover
+      this._renderCover(data.coverURL || "", "libro-cover-container");
+
+      // Show/hide action buttons based on permissions
+      const actionsDiv = document.getElementById("libro-det-actions");
+      actionsDiv.style.display = Roles.puede("editarLibro") ? "flex" : "none";
+
+      // Show view mode, hide edit mode
+      document.getElementById("libro-view-mode").style.display = "";
+      document.getElementById("libro-edit-mode").style.display = "none";
+
+      UI.abrirModal("modal-libro");
+    } catch (error) {
+      console.error("Error al cargar detalle:", error);
+      UI.toast("Error al cargar el libro.", "danger");
+    }
+  },
+
+  _renderCover(coverURL, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (coverURL) {
+      // Use wsrv.nl for resizing custom URLs, direct for Open Library URLs
+      let imgURL = coverURL;
+      if (!coverURL.includes("openlibrary.org")) {
+        imgURL = `https://wsrv.nl/?url=${encodeURIComponent(coverURL)}&w=400&h=560&fit=cover`;
+      }
+      container.innerHTML = `<div class="libro-cover-wrap"><img src="${Utils._escAttr(imgURL)}" alt="Portada" onerror="this.parentElement.innerHTML=Catalogo._placeholderHTML()"></div>`;
+    } else {
+      container.innerHTML = `<div class="libro-cover-wrap">${this._placeholderHTML()}</div>`;
+    }
+  },
+
+  _placeholderHTML() {
+    return `<div class="libro-cover-placeholder">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      </svg>
+      <span>Sin portada</span>
+    </div>`;
+  },
+
+  async activarModoEdicion() {
+    if (!this._currentDetailId) return;
+
+    try {
+      const docSnap = await getDoc(doc(db, this.coleccion, this._currentDetailId));
+      if (!docSnap.exists()) return;
+
+      const data = docSnap.data();
+
+      // Fill edit form
       document.getElementById("libro-titulo").value = data.titulo || "";
       document.getElementById("libro-autor").value = data.autor || "";
       document.getElementById("libro-isbn").value = data.isbn || "";
       document.getElementById("libro-genero").value = data.genero || "Otro";
       document.getElementById("libro-ejemplares").value = data.ejemplares || 1;
+      document.getElementById("libro-cover-url").value = data.coverURL || "";
 
-      const modal = document.getElementById("modal-libro");
-      modal.dataset.editId = id;
-      const btnGuardar = modal.querySelector(".btn-primary");
-      btnGuardar.textContent = "Actualizar libro";
-      btnGuardar.onclick = () => Catalogo.guardarEdicion(id);
+      // Show/hide eliminar portada button
+      document.getElementById("btn-eliminar-portada").disabled = !data.coverURL;
 
-      UI.abrirModal("modal-libro");
+      // Preview if cover exists
+      if (data.coverURL) {
+        this.previewCoverURL();
+      } else {
+        document.getElementById("libro-cover-edit-preview").style.display = "none";
+      }
+
+      // Wire save button
+      const btnGuardar = document.getElementById("btn-guardar-edicion");
+      btnGuardar.onclick = () => Catalogo.guardarEdicion(this._currentDetailId);
+
+      // Switch modes
+      document.getElementById("libro-view-mode").style.display = "none";
+      document.getElementById("libro-edit-mode").style.display = "";
     } catch (error) {
-      console.error("Error al editar libro:", error);
-      UI.mostrarAlerta("alert-libro", "Error al cargar el libro.", "danger");
+      console.error("Error al cargar libro para editar:", error);
+      UI.toast("Error al cargar el libro.", "danger");
     }
+  },
+
+  cancelarEdicion() {
+    if (!this._currentDetailId) {
+      UI.cerrarModal("modal-libro");
+      return;
+    }
+    // Go back to view mode
+    document.getElementById("libro-view-mode").style.display = "";
+    document.getElementById("libro-edit-mode").style.display = "none";
+  },
+
+  async eliminarDesdeModal() {
+    if (!this._currentDetailId) return;
+    const titulo = document.getElementById("libro-det-titulo").textContent;
+    await this.eliminar(this._currentDetailId, titulo);
+    // If elimination succeeded, modal would have been closed by eliminar()
+    // But just in case:
+    UI.cerrarModal("modal-libro");
   },
 
   async guardarEdicion(id) {
@@ -1031,9 +1253,10 @@ const Catalogo = {
     const isbn = document.getElementById("libro-isbn").value.trim();
     const genero = document.getElementById("libro-genero").value;
     const ejemplaresNuevos = parseInt(document.getElementById("libro-ejemplares").value) || 1;
+    const coverURL = document.getElementById("libro-cover-url").value.trim();
 
     if (!titulo || !autor) {
-      UI.mostrarAlerta("alert-libro", "Titulo y autor son obligatorios.", "danger");
+      UI.toast("Titulo y autor son obligatorios.", "danger");
       return;
     }
 
@@ -1050,21 +1273,66 @@ const Catalogo = {
         titulo, autor,
         isbn: isbn || "",
         genero, ejemplares: ejemplaresNuevos,
-        disponibles: nuevosDisponibles
+        disponibles: nuevosDisponibles,
+        coverURL
       });
 
       AuditLog.registrar("editar", "libro", id, `Libro "${titulo}" editado`);
 
-      this._resetModal();
-      UI.cerrarModal("modal-libro");
-      UI.mostrarAlerta("alert-libro", `Libro "${titulo}" actualizado correctamente.`);
+      // Go back to view mode and refresh
+      this._currentDetailId = id;
+      this.verDetalle(id);
+      UI.toast(`Libro "${titulo}" actualizado correctamente.`);
+      // Also refresh catalog in background
       this.render();
     } catch (error) {
       console.error("Error al actualizar libro:", error);
-      UI.mostrarAlerta("alert-libro", "Error al actualizar el libro.", "danger");
+      UI.toast("Error al actualizar el libro.", "danger");
     } finally {
       Utils.loading(false);
     }
+  },
+
+  async guardarCoverURL() {
+    const url = document.getElementById("libro-cover-url").value.trim();
+    if (!url) {
+      UI.toast("Ingresá una URL de imagen.", "warning");
+      return;
+    }
+
+    // Quick validation - try loading the image
+    const img = new Image();
+    img.onload = () => {
+      UI.toast("URL de portada guardada (se aplica al guardar cambios).", "success");
+      document.getElementById("btn-eliminar-portada").disabled = false;
+      this.previewCoverURL();
+    };
+    img.onerror = () => {
+      UI.toast("No se pudo cargar la imagen. Verificá la URL.", "danger");
+    };
+    img.src = url;
+  },
+
+  previewCoverURL() {
+    const url = document.getElementById("libro-cover-url").value.trim();
+    const preview = document.getElementById("libro-cover-edit-preview");
+    if (!url) {
+      preview.style.display = "none";
+      return;
+    }
+    let imgURL = url;
+    if (!url.includes("openlibrary.org")) {
+      imgURL = `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=400&h=560&fit=cover`;
+    }
+    preview.innerHTML = `<img src="${Utils._escAttr(imgURL)}" alt="Preview" onerror="document.getElementById('libro-cover-edit-preview').style.display='none'">`;
+    preview.style.display = "";
+  },
+
+  async eliminarPortada() {
+    document.getElementById("libro-cover-url").value = "";
+    document.getElementById("libro-cover-edit-preview").style.display = "none";
+    document.getElementById("btn-eliminar-portada").disabled = true;
+    UI.toast("Portada eliminada (se aplica al guardar cambios).", "info");
   },
 
   async eliminar(id, titulo) {
@@ -1104,13 +1372,6 @@ const Catalogo = {
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
   },
 
-  _resetModal() {
-    const modal = document.getElementById("modal-libro");
-    delete modal.dataset.editId;
-    const btnGuardar = modal.querySelector(".btn-primary");
-    btnGuardar.textContent = "Guardar libro";
-    btnGuardar.onclick = () => Catalogo.agregar();
-  }
 };
 
 
@@ -3102,12 +3363,39 @@ const CargaMasiva = {
     resultado.style.display = "none";
 
     try {
+      // Check if ISBN auto-search is enabled
+      const buscarISBNCheck = document.getElementById("carga-buscar-isbn");
+      const librosAModificar = [...this._datos];
+      
+      if (buscarISBNCheck && buscarISBNCheck.checked) {
+        // Show progress for ISBN search
+        progreso.style.display = "";
+        label.textContent = "Buscando ISBNs y portadas...";
+        barra.style.width = "0%";
+
+        const isbnResultados = await OpenLibraryAPI.buscarLote(librosAModificar);
+
+        // Apply results
+        for (const [idx, resultado] of Object.entries(isbnResultados)) {
+          const i = parseInt(idx);
+          if (resultado.isbn) {
+            librosAModificar[i].isbn = resultado.isbn;
+          }
+          if (resultado.coverURL) {
+            librosAModificar[i].coverURL = resultado.coverURL;
+          }
+        }
+
+        barra.style.width = "30%";
+        label.textContent = "Guardando en Firestore...";
+      }
+
       const BATCH_SIZE = 500;
-      const total = this._datos.length;
+      const total = librosAModificar.length;
       let procesados = 0;
 
       for (let i = 0; i < total; i += BATCH_SIZE) {
-        const lote = this._datos.slice(i, i + BATCH_SIZE);
+        const lote = librosAModificar.slice(i, i + BATCH_SIZE);
         const batch = writeBatch(db);
 
         lote.forEach(libro => {
@@ -3119,6 +3407,7 @@ const CargaMasiva = {
             genero: libro.genero,
             ejemplares: libro.ejemplares,
             disponibles: libro.ejemplares,
+            coverURL: libro.coverURL || "",
             createdAt: serverTimestamp()
           });
         });
@@ -3126,7 +3415,12 @@ const CargaMasiva = {
         await batch.commit();
         procesados += lote.length;
 
-        const pct = Math.round((procesados / total) * 100);
+        let pct;
+        if (buscarISBNCheck && buscarISBNCheck.checked) {
+          pct = 30 + Math.round((procesados / total) * 70);
+        } else {
+          pct = Math.round((procesados / total) * 100);
+        }
         barra.style.width = pct + "%";
         label.textContent = "Procesando...";
         count.textContent = `${procesados}/${total}`;
@@ -3218,7 +3512,6 @@ document.querySelectorAll(".overlay").forEach(overlay => {
     if (e.target === overlay) {
       overlay.classList.remove("open");
       // Only reset the specific modal that was closed
-      if (overlay.id === "modal-libro") Catalogo._resetModal();
       if (overlay.id === "modal-usuario") Usuarios._prepararModalAgregar();
     }
   });
