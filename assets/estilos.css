@@ -1266,3 +1266,68 @@ th.sortable.desc .sort-arrow {
   color: var(--texto-muted);
   margin-top: 2px;
 }
+
+/* ── CARGA MASIVA: Dropzone ─────────────────── */
+.dropzone {
+  border: 2px dashed var(--borde);
+  border-radius: 12px;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--gris-100);
+}
+
+.dropzone:hover,
+.dropzone.drag-over {
+  border-color: var(--verde);
+  background: var(--verde-claro);
+}
+
+.dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.dropzone-file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+/* ── CARGA MASIVA: Progress Bar ─────────────── */
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--gris-200);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--verde), var(--verde-oscuro));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* ── CARGA MASIVA: Tabla previa ─────────────── */
+#tabla-carga-previa tbody tr {
+  border-bottom: 1px solid var(--borde);
+}
+
+#tabla-carga-previa tbody tr:last-child {
+  border-bottom: none;
+}
+
+#tabla-carga-previa tbody td {
+  padding: 6px 8px;
+  color: var(--texto);
+}
+
+#tabla-carga-previa tbody tr:hover {
+  background: var(--gris-100);
+}

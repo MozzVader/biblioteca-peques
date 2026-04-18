@@ -7,7 +7,7 @@ import {
   auth, db, secondaryAuth,
   collection, doc, addDoc, setDoc, getDoc, getDocs,
   updateDoc, deleteDoc, query, where, orderBy, limit,
-  serverTimestamp, increment,
+  serverTimestamp, increment, writeBatch,
   signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged
 } from "./firebase.js";
 
@@ -2747,6 +2747,12 @@ const Config = {
         document.getElementById("cfg-dias").value = data.diasPrestamo || 7;
         document.getElementById("cfg-biblio").value = data.nombreBibliotecario || "";
       }
+      // Ocultar/mostrar botón de carga masiva según rol
+      const btnCargaMasiva = document.getElementById("btn-carga-masiva");
+      if (btnCargaMasiva) {
+        const card = btnCargaMasiva.closest(".table-card");
+        if (card) card.style.display = Roles.puede("agregarLibro") ? "" : "none";
+      }
     } catch (error) {
       console.error("Error al cargar configuracion:", error);
     }
@@ -2808,6 +2814,337 @@ window.Reportes = Reportes;
 window.MiHistorial = MiHistorial;
 window.Notificaciones = Notificaciones;
 window.SearchSelect = SearchSelect;
+
+// ══════════════════════════════════════════════════════════════
+//  CARGA MASIVA — Importar libros desde Excel/CSV
+// ══════════════════════════════════════════════════════════════
+
+const CargaMasiva = {
+  GENEROS_VALIDOS: ["Literatura", "Novela", "Texto escolar", "Historia", "Ciencias", "Matemática", "Arte", "Otro"],
+  _datos: [],      // Libros parseados del archivo
+  _errores: [],    // Filas con error
+  _archivo: null,  // File object
+
+  abrirModal() {
+    this._resetState();
+    UI.abrirModal("modal-carga-masiva");
+    this._initDropzone();
+    // Ocultar botón si no es admin
+    const btnImportar = document.getElementById("btn-importar-libros");
+    if (btnImportar) btnImportar.disabled = true;
+  },
+
+  cerrarModal() {
+    UI.cerrarModal("modal-carga-masiva");
+    this._resetState();
+  },
+
+  _resetState() {
+    this._datos = [];
+    this._errores = [];
+    this._archivo = null;
+
+    const dz = document.getElementById("carga-dropzone");
+    if (dz) {
+      dz.classList.remove("drag-over");
+      dz.querySelector("#dropzone-content").style.display = "";
+      dz.querySelector("#dropzone-file").style.display = "none";
+    }
+    const input = document.getElementById("carga-archivo");
+    if (input) input.value = "";
+
+    const previa = document.getElementById("carga-vista-previa");
+    if (previa) previa.style.display = "none";
+
+    const progreso = document.getElementById("carga-progreso");
+    if (progreso) progreso.style.display = "none";
+
+    const errores = document.getElementById("carga-errores");
+    if (errores) { errores.style.display = "none"; errores.textContent = ""; }
+
+    const btnImportar = document.getElementById("btn-importar-libros");
+    if (btnImportar) btnImportar.disabled = true;
+
+    const barra = document.getElementById("carga-progreso-bar");
+    if (barra) barra.style.width = "0%";
+    const texto = document.getElementById("carga-progreso-texto");
+    if (texto) texto.textContent = "0%";
+  },
+
+  quitarArchivo() {
+    this._archivo = null;
+    this._datos = [];
+    this._errores = [];
+
+    const dz = document.getElementById("carga-dropzone");
+    if (dz) {
+      dz.querySelector("#dropzone-content").style.display = "";
+      dz.querySelector("#dropzone-file").style.display = "none";
+    }
+    const input = document.getElementById("carga-archivo");
+    if (input) input.value = "";
+
+    const previa = document.getElementById("carga-vista-previa");
+    if (previa) previa.style.display = "none";
+
+    const btnImportar = document.getElementById("btn-importar-libros");
+    if (btnImportar) btnImportar.disabled = true;
+  },
+
+  _initDropzone() {
+    const dz = document.getElementById("carga-dropzone");
+    const input = document.getElementById("carga-archivo");
+    if (!dz || !input) return;
+
+    // Remover listeners previos para evitar duplicados
+    dz._dropzoneInit = true;
+    if (dz._dropzoneInit) {
+      const newDz = dz.cloneNode(true);
+      dz.parentNode.replaceChild(newDz, dz);
+    }
+
+    const dropzone = document.getElementById("carga-dropzone");
+    const fileInput = document.getElementById("carga-archivo");
+
+    // Click para abrir selector
+    dropzone.addEventListener("click", (e) => {
+      if (e.target.closest("button")) return; // No abrir si clic en botón quitar
+      fileInput.click();
+    });
+
+    // File input change
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) {
+        this._procesarArchivo(e.target.files[0]);
+      }
+    });
+
+    // Drag & drop
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.add("drag-over");
+    });
+
+    dropzone.addEventListener("dragleave", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.remove("drag-over");
+    });
+
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.remove("drag-over");
+      if (e.dataTransfer.files.length > 0) {
+        this._procesarArchivo(e.dataTransfer.files[0]);
+      }
+    });
+  },
+
+  _procesarArchivo(file) {
+    const extensionesValidas = [".xlsx", ".xls", ".csv"];
+    const nombre = file.name.toLowerCase();
+    const esValido = extensionesValidas.some(ext => nombre.endsWith(ext));
+
+    if (!esValido) {
+      alert("Formato no soportado. Usá archivos .xlsx, .xls o .csv");
+      return;
+    }
+
+    this._archivo = file;
+
+    // Mostrar info del archivo
+    const dz = document.getElementById("carga-dropzone");
+    dz.querySelector("#dropzone-content").style.display = "none";
+    dz.querySelector("#dropzone-file").style.display = "flex";
+    document.getElementById("carga-nombre-archivo").textContent = file.name;
+    document.getElementById("carga-tam-archivo").textContent = this._formatSize(file.size);
+
+    // Leer archivo con SheetJS
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const primeraHoja = workbook.SheetNames[0];
+        const hoja = workbook.Sheets[primeraHoja];
+        const filas = XLSX.utils.sheet_to_json(hoja, { defval: "" });
+
+        if (filas.length === 0) {
+          alert("El archivo está vacío o no tiene datos.");
+          this.quitarArchivo();
+          return;
+        }
+
+        this._parsearFilas(filas);
+        this._renderVistaPrevia();
+      } catch (err) {
+        console.error("Error al leer archivo:", err);
+        alert("Error al procesar el archivo. Verificá que el formato sea correcto.");
+        this.quitarArchivo();
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  },
+
+  _parsearFilas(filas) {
+    this._datos = [];
+    this._errores = [];
+
+    filas.forEach((fila, idx) => {
+      const titulo = String(fila.titulo || fila.Titulo || fila.TITULO || fila.title || fila.Title || "").trim();
+      const autor = String(fila.autor || fila.Autor || fila.AUTOR || fila.author || fila.Author || "").trim();
+      const isbn = String(fila.isbn || fila.ISBN || fila.Isbn || "").trim();
+      const generoRaw = String(fila.genero || fila.Genero || fila.GENERO || fila.genre || fila.Genre || "").trim();
+      const ejemplaresRaw = parseInt(fila.ejemplares || fila.Ejemplares || fila.EJEMPLARES || fila.cantidad || fila.Cantidad || 1) || 1;
+
+      // Normalizar género
+      let genero = "";
+      if (generoRaw) {
+        const match = this.GENEROS_VALIDOS.find(g =>
+          g.toLowerCase() === generoRaw.toLowerCase() ||
+          g.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === generoRaw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+        );
+        genero = match || "Otro";
+      } else {
+        genero = "Otro";
+      }
+
+      if (!titulo || !autor) {
+        this._errores.push(`Fila ${idx + 2}: falta titulo o autor`);
+        return;
+      }
+
+      this._datos.push({
+        titulo,
+        autor,
+        isbn,
+        genero,
+        ejemplares: Math.max(1, ejemplaresRaw)
+      });
+    });
+  },
+
+  _renderVistaPrevia() {
+    const previa = document.getElementById("carga-vista-previa");
+    const tbody = document.getElementById("tbody-carga-previa");
+    const contador = document.getElementById("carga-contador");
+    const errores = document.getElementById("carga-errores");
+    const btnImportar = document.getElementById("btn-importar-libros");
+
+    previa.style.display = "block";
+    contador.textContent = `${this._datos.length} libro${this._datos.length !== 1 ? "s" : ""}`;
+
+    // Mostrar errores si hay
+    if (this._errores.length > 0) {
+      errores.style.display = "block";
+      errores.innerHTML = `<strong>Advertencias (${this._errores.length}):</strong> ` +
+        this._errores.slice(0, 5).join("<br>") +
+        (this._errores.length > 5 ? `<br>... y ${this._errores.length - 5} más` : "");
+    } else {
+      errores.style.display = "none";
+    }
+
+    // Renderizar tabla (máx 100 filas de preview)
+    const preview = this._datos.slice(0, 100);
+    tbody.innerHTML = preview.map(libro => `
+      <tr>
+        <td>${Utils._esc(libro.titulo)}</td>
+        <td>${Utils._esc(libro.autor)}</td>
+        <td>${Utils._esc(libro.isbn || "—")}</td>
+        <td><span class="badge badge-azul">${Utils._esc(libro.genero)}</span></td>
+        <td style="text-align:center">${libro.ejemplares}</td>
+      </tr>
+    `).join("");
+
+    if (this._datos.length > 100) {
+      tbody.innerHTML += `<tr><td colspan="5" style="text-align:center;padding:8px;color:var(--texto-muted);font-style:italic">... y ${this._datos.length - 100} filas más</td></tr>`;
+    }
+
+    // Habilitar botón importar
+    btnImportar.disabled = this._datos.length === 0;
+  },
+
+  async importar() {
+    if (this._datos.length === 0) return;
+
+    const btnImportar = document.getElementById("btn-importar-libros");
+    const progreso = document.getElementById("carga-progreso");
+    const barra = document.getElementById("carga-progreso-bar");
+    const texto = document.getElementById("carga-progreso-texto");
+
+    btnImportar.disabled = true;
+    btnImportar.textContent = "Importando...";
+    progreso.style.display = "block";
+
+    try {
+      const BATCH_SIZE = 500; // Firestore batch max
+      const total = this._datos.length;
+      let procesados = 0;
+
+      for (let i = 0; i < total; i += BATCH_SIZE) {
+        const lote = this._datos.slice(i, i + BATCH_SIZE);
+        const batch = writeBatch(db);
+
+        lote.forEach(libro => {
+          const docRef = doc(collection(db, "libros"));
+          batch.set(docRef, {
+            titulo: libro.titulo,
+            autor: libro.autor,
+            isbn: libro.isbn || "",
+            genero: libro.genero,
+            ejemplares: libro.ejemplares,
+            disponibles: libro.ejemplares,
+            createdAt: serverTimestamp()
+          });
+        });
+
+        await batch.commit();
+        procesados += lote.length;
+
+        const pct = Math.round((procesados / total) * 100);
+        barra.style.width = pct + "%";
+        texto.textContent = `${pct}% (${procesados}/${total})`;
+      }
+
+      // Audit log
+      AuditLog.registrar("crear", "libro", null, `Carga masiva: ${total} libros importados desde archivo "${this._archivo?.name || "desconocido"}"`);
+
+      // Éxito
+      texto.textContent = "Completado!";
+      barra.style.width = "100%";
+      btnImportar.textContent = "Importado!";
+
+      // Cerrar modal después de un momento
+      setTimeout(() => {
+        this.cerrarModal();
+        Catalogo.render();
+        UI.mostrarAlerta("alert-config", `${total} libros importados correctamente.`, "success", 4000);
+      }, 1000);
+
+    } catch (error) {
+      console.error("Error en carga masiva:", error);
+      texto.textContent = "Error";
+      barra.style.width = "0%";
+      btnImportar.disabled = false;
+      btnImportar.textContent = "Reintentar";
+      alert("Error al importar los libros: " + (error.message || "Error desconocido"));
+    }
+  },
+
+  _formatSize(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / 1048576).toFixed(1) + " MB";
+  }
+};
+
+window.CargaMasiva = CargaMasiva;
+
+// ══════════════════════════════════════════════════════════════
+//  INICIALIZACIÓN
+// ══════════════════════════════════════════════════════════════
 
 // Permitir login con Enter
 document.getElementById("login-password").addEventListener("keypress", (e) => {

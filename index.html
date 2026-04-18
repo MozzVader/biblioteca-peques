@@ -7,6 +7,8 @@
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/estilos.css">
+  <!-- SheetJS para importar Excel en carga masiva -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -491,6 +493,24 @@
               de cualquier usuario.</p>
             </div>
           </div>
+
+          <!-- CARGA MASIVA DE LIBROS -->
+          <div class="table-card" style="padding:1.5rem;margin-top:1rem">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+              <div>
+                <h3 style="margin:0 0 0.25rem 0;font-size:1rem;font-weight:600;color:var(--texto)">Carga masiva de libros</h3>
+                <p style="margin:0;font-size:0.8rem;color:var(--texto-muted)">Importá libros desde un archivo Excel (.xlsx) o CSV</p>
+              </div>
+              <button class="btn btn-primary" onclick="CargaMasiva.abrirModal()" id="btn-carga-masiva">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Importar archivo
+              </button>
+            </div>
+            <div class="config-hint">
+              <p><strong>Formato requerido:</strong> El archivo debe tener las columnas <strong>titulo</strong>, <strong>autor</strong> (obligatorias). Opcionalmente: <strong>isbn</strong>, <strong>genero</strong>, <strong>ejemplares</strong> (por defecto 1).</p>
+              <p style="margin-top:4px"><strong>Géneros válidos:</strong> Literatura, Novela, Texto escolar, Historia, Ciencias, Matemática, Arte, Otro.</p>
+            </div>
+          </div>
         </div>
 
         <!-- LOG DE EVENTOS -->
@@ -672,6 +692,70 @@
       <div class="modal-footer">
         <button class="btn" onclick="UI.cerrarModal('modal-prestamo')">Cancelar</button>
         <button class="btn btn-primary" onclick="Prestamos.registrar()">Registrar préstamo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Carga Masiva de Libros -->
+  <div class="overlay" id="modal-carga-masiva">
+    <div class="modal" style="max-width:640px">
+      <h3>Upload Carga masiva de libros</h3>
+      <p style="margin:0 0 1rem 0;font-size:0.85rem;color:var(--texto-muted)">Arrastrá tu archivo Excel o CSV aquí, o hacé clic para seleccionarlo</p>
+
+      <div class="dropzone" id="carga-dropzone">
+        <input type="file" id="carga-archivo" accept=".xlsx,.xls,.csv" style="display:none">
+        <div class="dropzone-content" id="dropzone-content">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--texto-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <p style="margin:8px 0 0 0;font-weight:500;color:var(--texto)">Arrastrá el archivo aquí</p>
+          <p style="margin:4px 0 0 0;font-size:0.8rem;color:var(--texto-muted)">o hacé clic para buscar</p>
+        </div>
+        <div class="dropzone-file" id="dropzone-file" style="display:none">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--verde)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <div>
+            <p id="carga-nombre-archivo" style="margin:0;font-weight:500;color:var(--texto)"></p>
+            <p id="carga-tam-archivo" style="margin:2px 0 0 0;font-size:0.8rem;color:var(--texto-muted)"></p>
+          </div>
+          <button class="btn btn-sm" onclick="CargaMasiva.quitarArchivo()" title="Quitar archivo" style="margin-left:auto;color:#A32D2D;font-size:18px;padding:4px 8px">&#10005;</button>
+        </div>
+      </div>
+
+      <!-- Vista previa -->
+      <div id="carga-vista-previa" style="display:none;margin-top:1rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <h4 style="margin:0;font-size:0.9rem;font-weight:600;color:var(--texto)">Vista previa</h4>
+          <span id="carga-contador" class="badge badge-verde"></span>
+        </div>
+        <div style="max-height:240px;overflow:auto;border:1px solid var(--borde);border-radius:8px">
+          <table id="tabla-carga-previa" style="width:100%;border-collapse:collapse;font-size:0.82rem">
+            <thead>
+              <tr>
+                <th style="position:sticky;top:0;background:var(--fondo-card);padding:8px;text-align:left;border-bottom:2px solid var(--borde);font-weight:600">Titulo</th>
+                <th style="position:sticky;top:0;background:var(--fondo-card);padding:8px;text-align:left;border-bottom:2px solid var(--borde);font-weight:600">Autor</th>
+                <th style="position:sticky;top:0;background:var(--fondo-card);padding:8px;text-align:left;border-bottom:2px solid var(--borde);font-weight:600">ISBN</th>
+                <th style="position:sticky;top:0;background:var(--fondo-card);padding:8px;text-align:left;border-bottom:2px solid var(--borde);font-weight:600">Genero</th>
+                <th style="position:sticky;top:0;background:var(--fondo-card);padding:8px;text-align:center;border-bottom:2px solid var(--borde);font-weight:600">Ejemplares</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-carga-previa"></tbody>
+          </table>
+        </div>
+        <p id="carga-errores" style="margin:8px 0 0 0;font-size:0.8rem;color:#A32D2D;display:none"></p>
+      </div>
+
+      <!-- Barra de progreso -->
+      <div id="carga-progreso" style="display:none;margin-top:1rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:0.85rem;color:var(--texto)">Importando libros...</span>
+          <span id="carga-progreso-texto" style="font-size:0.85rem;color:var(--verde);font-weight:600">0%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="carga-progreso-bar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="margin-top:1rem">
+        <button class="btn" onclick="CargaMasiva.cerrarModal()">Cancelar</button>
+        <button class="btn btn-primary" id="btn-importar-libros" onclick="CargaMasiva.importar()" disabled>Importar libros</button>
       </div>
     </div>
   </div>
