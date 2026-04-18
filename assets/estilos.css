@@ -331,8 +331,20 @@ header h1 {
   border-right: 1px solid var(--sidebar-border);
   padding: 1.25rem 0;
   position: fixed; top: var(--header-h); bottom: 0;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   transition: background 0.35s ease, border-color 0.35s ease;
+}
+.sidebar-top {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.sidebar-bottom {
+  flex-shrink: 0;
+  margin-top: auto;
+  padding-bottom: 0;
 }
 .nav-section { padding: 0 0.75rem; margin-bottom: 0.75rem; }
 .nav-label {

@@ -113,75 +113,97 @@
 
       <!-- SIDEBAR -->
       <div class="sidebar" id="sidebar">
-        <div class="nav-section">
-          <div class="nav-label">Principal</div>
-          <div class="nav-item active" data-sec="inicio" onclick="UI.navigate(this,'inicio')">
-            <span class="icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><path d="M9 21V12h6v9"/>
-              </svg>
-            </span> Inicio
+
+        <!-- ═══ Secciones principales (scrolleable) ═══ -->
+        <div class="sidebar-top">
+
+          <div class="nav-section">
+            <div class="nav-label">Biblioteca</div>
+            <div class="nav-item active" data-sec="inicio" onclick="UI.navigate(this,'inicio')">
+              <span class="icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><path d="M9 21V12h6v9"/>
+                </svg>
+              </span> Inicio
+            </div>
+            <div class="nav-item" data-sec="catalogo" onclick="UI.navigate(this,'catalogo')">
+              <span class="icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                </svg>
+              </span> Catálogo
+            </div>
+            <div class="nav-item" data-sec="prestamos" onclick="UI.navigate(this,'prestamos')">
+              <span class="icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M7 16V4m0 0L3 8m4-4 4 4"/><path d="M17 8v12m0 0 4-4m-4 4-4-4"/>
+                </svg>
+              </span> Préstamos
+            </div>
           </div>
-          <div class="nav-item" data-sec="catalogo" onclick="UI.navigate(this,'catalogo')">
-            <span class="icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-              </svg>
-            </span> Catálogo
+
+          <div class="nav-divider"></div>
+
+          <div class="nav-section">
+            <div class="nav-label">Mi cuenta</div>
+            <div class="nav-item" data-sec="mihistorial" onclick="UI.navigate(this,'mihistorial')">
+              <span class="icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </span> Mi historial
+            </div>
+            <!-- Futuro: Mis reservas -->
           </div>
-          <div class="nav-item" data-sec="prestamos" onclick="UI.navigate(this,'prestamos')">
-            <span class="icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M7 16V4m0 0L3 8m4-4 4 4"/><path d="M17 8v12m0 0 4-4m-4 4-4-4"/>
-              </svg>
-            </span> Préstamos
+
+          <div class="nav-divider"></div>
+
+          <div class="nav-section">
+            <div class="nav-label">Análisis</div>
+            <div class="nav-item" data-sec="reportes" onclick="UI.navigate(this,'reportes')">
+              <span class="icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+                </svg>
+              </span> Reportes
+            </div>
+            <div class="nav-item" data-sec="vencidos" onclick="UI.navigate(this,'vencidos')">
+              <span class="icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+              </span> Vencidos
+              <span id="badge-vencidos" class="badge badge-rojo" style="margin-left:auto;font-size:12px;padding:2px 7px"></span>
+            </div>
           </div>
-          <!-- FEATURE 2: Mi historial nav item -->
-          <div class="nav-item" data-sec="mihistorial" onclick="UI.navigate(this,'mihistorial')">
-            <span class="icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
-            </span> Mi historial
-          </div>
-          <!-- END FEATURE 2 -->
+
         </div>
-        <div class="nav-divider"></div>
-        <div class="nav-section">
-          <div class="nav-label">Administración</div>
-          <div class="nav-item" data-sec="usuarios" onclick="UI.navigate(this,'usuarios')">
-            <span class="icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75M22 21v-2a4 4 0 0 0-3-3.87"/>
-              </svg>
-            </span> Usuarios
-          </div>
-          <div class="nav-item" data-sec="vencidos" onclick="UI.navigate(this,'vencidos')">
-            <span class="icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-            </span> Vencidos
-            <span id="badge-vencidos" class="badge badge-rojo" style="margin-left:auto;font-size:12px;padding:2px 7px"></span>
-          </div>
-          <div class="nav-item" data-sec="reportes" onclick="UI.navigate(this,'reportes')">
-            <span class="icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-              </svg>
-            </span> Reportes
+        <!-- /sidebar-top -->
+
+        <!-- ═══ Administración (fijo al pie del sidebar) ═══ -->
+        <div class="sidebar-bottom">
+          <div class="nav-divider"></div>
+          <div class="nav-section">
+            <div class="nav-label">Administración</div>
+            <div class="nav-item" data-sec="usuarios" onclick="UI.navigate(this,'usuarios')">
+              <span class="icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75M22 21v-2a4 4 0 0 0-3-3.87"/>
+                </svg>
+              </span> Usuarios
+            </div>
+            <!-- Futuro: Log de eventos -->
+            <div class="nav-item" data-sec="config" onclick="UI.navigate(this,'config')">
+              <span class="icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+              </span> Configuración
+            </div>
           </div>
         </div>
-        <div class="nav-divider"></div>
-        <div class="nav-section">
-          <div class="nav-item" data-sec="config" onclick="UI.navigate(this,'config')">
-            <span class="icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-              </svg>
-            </span> Configuración
-          </div>
-        </div>
+        <!-- /sidebar-bottom -->
+
       </div>
 
       <!-- MAIN -->

@@ -405,30 +405,31 @@ const Roles = {
   },
 
   aplicarSidebar() {
+    // 1) Ocultar/mostrar cada nav-item segun permisos
     document.querySelectorAll(".nav-item[data-sec]").forEach(item => {
       const sec = item.dataset.sec;
-      if (!this.puedeVer(sec)) {
-        item.style.display = "none";
-      } else {
-        item.style.display = "";
-      }
+      item.style.display = this.puedeVer(sec) ? "" : "none";
     });
+
+    // 2) Ocultar secciones vacias y su divider siguiente
     document.querySelectorAll(".nav-section").forEach(section => {
-      const items = section.querySelectorAll(".nav-item");
-      const visibleItems = Array.from(items).filter(i => i.style.display !== "none");
+      const visibleItems = Array.from(section.querySelectorAll(".nav-item")).filter(i => i.style.display !== "none");
       const divider = section.nextElementSibling;
       if (visibleItems.length === 0) {
         section.style.display = "none";
-        if (divider && divider.classList.contains("nav-divider")) {
-          divider.style.display = "none";
-        }
+        if (divider && divider.classList.contains("nav-divider")) divider.style.display = "none";
       } else {
         section.style.display = "";
-        if (divider && divider.classList.contains("nav-divider")) {
-          divider.style.display = "";
-        }
+        if (divider && divider.classList.contains("nav-divider")) divider.style.display = "";
       }
     });
+
+    // 3) Ocultar sidebar-bottom si no hay items visibles en Administración
+    const sidebarBottom = document.querySelector(".sidebar-bottom");
+    if (sidebarBottom) {
+      const hasVisible = Array.from(sidebarBottom.querySelectorAll(".nav-item")).some(i => i.style.display !== "none");
+      sidebarBottom.style.display = hasVisible ? "" : "none";
+    }
   },
 
   aplicarBotones(seccion) {
