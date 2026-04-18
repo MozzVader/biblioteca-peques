@@ -3083,6 +3083,7 @@ const Config = {
 // ══════════════════════════════════════════════════════════════
 
 // Hacer disponibles los objetos globalmente para los onclick del HTML
+window.Utils = Utils;
 window.Auth = Auth;
 window.UI = UI;
 window.Catalogo = Catalogo;
