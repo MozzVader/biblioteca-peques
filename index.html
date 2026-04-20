@@ -323,11 +323,9 @@
             <h2>Préstamos</h2>
             <p>Registrá nuevos préstamos y devoluciones</p>
           </div>
-          <div class="toolbar">
-            <button class="btn btn-primary" onclick="UI.abrirModal('modal-prestamo')">+ Nuevo préstamo</button>
-          </div>
           <div class="search-bar">
             <input type="text" id="buscar-prestamo" placeholder="Buscar por título o usuario..." oninput="Utils.debounce('buscar-prestamo', ()=>{Prestamos._page=1; Prestamos.render()})">
+            <button class="btn btn-primary" onclick="UI.abrirModal('modal-prestamo')">+ Nuevo préstamo</button>
           </div>
           <!-- FEATURE 3: Filter bar -->
           <div class="filter-bar">
