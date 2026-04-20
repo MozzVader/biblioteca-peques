@@ -2015,6 +2015,7 @@ const Prestamos = {
   async render() {
     const tbody = document.getElementById("tabla-prestamos");
     const filtroEstado = document.getElementById("filtro-estado")?.value || "";
+    const filtro = (document.getElementById("buscar-prestamo")?.value || "").toLowerCase();
 
     try {
       const { mapLibros, mapUsuarios } = await Utils.cargarNombres();
@@ -2048,6 +2049,11 @@ const Prestamos = {
 
         const nombreLibro = Utils.nombreLibro(data, mapLibros);
         const nombreUsu = Utils.nombreUsuario(data, mapUsuarios);
+
+        if (filtro) {
+          const texto = `${nombreLibro} ${nombreUsu}`.toLowerCase();
+          if (!texto.includes(filtro)) return;
+        }
 
         this._data.push({ id, ...data, estado, badge, nombreLibro, nombreUsu });
       });
@@ -2094,8 +2100,9 @@ const Prestamos = {
       });
 
       if (!html) {
+        const hayFiltro = filtro || filtroEstado;
         html = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--texto-muted)">
-          No hay prestamos registrados.
+          ${hayFiltro ? "No se encontraron resultados." : "No hay prestamos registrados."}
         </td></tr>`;
       }
 
@@ -2320,6 +2327,7 @@ const Vencidos = {
 
   async render() {
     const tbody = document.getElementById("tabla-vencidos");
+    const filtro = (document.getElementById("buscar-vencido")?.value || "").toLowerCase();
 
     try {
       const { mapLibros, mapUsuarios } = await Utils.cargarNombres();
@@ -2344,6 +2352,12 @@ const Vencidos = {
           const diasAtraso = Utils.daysDiff(data.fechaDevolucion);
           const nombreLibro = Utils.nombreLibro(data, mapLibros);
           const nombreUsu = Utils.nombreUsuario(data, mapUsuarios);
+
+          // Search filter
+          if (filtro) {
+            const texto = `${nombreLibro} ${nombreUsu}`.toLowerCase();
+            if (!texto.includes(filtro)) return;
+          }
 
           this._data.push({
             id,
@@ -2371,7 +2385,7 @@ const Vencidos = {
       let html = "";
       if (sorted.length === 0) {
         html = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--texto-muted)">
-          No hay prestamos vencidos. Todo al dia.
+          ${filtro ? "No se encontraron resultados." : "No hay prestamos vencidos. Todo al dia."}
         </td></tr>`;
       } else {
         sorted.forEach((item) => {

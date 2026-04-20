@@ -326,6 +326,9 @@
           <div class="toolbar">
             <button class="btn btn-primary" onclick="UI.abrirModal('modal-prestamo')">+ Nuevo préstamo</button>
           </div>
+          <div class="search-bar">
+            <input type="text" id="buscar-prestamo" placeholder="Buscar por título o usuario..." oninput="Utils.debounce('buscar-prestamo', ()=>{Prestamos._page=1; Prestamos.render()})">
+          </div>
           <!-- FEATURE 3: Filter bar -->
           <div class="filter-bar">
             <select class="filter-select" id="filtro-estado" onchange="Prestamos._filtroEstado=this.value; Prestamos._page=1; Prestamos.render()">
@@ -401,6 +404,9 @@
           <div class="page-header">
             <h2>Préstamos vencidos</h2>
             <p>Libros que no fueron devueltos a tiempo</p>
+          </div>
+          <div class="search-bar">
+            <input type="text" id="buscar-vencido" placeholder="Buscar por título o usuario..." oninput="Utils.debounce('buscar-vencido', ()=>{Vencidos.render()})">
           </div>
           <div class="table-card">
             <!-- FEATURE 5: Sortable headers + table id -->
