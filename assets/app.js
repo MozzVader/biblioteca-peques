@@ -7,7 +7,7 @@ import {
   auth, db, secondaryAuth,
   collection, doc, addDoc, setDoc, getDoc, getDocs,
   updateDoc, deleteDoc, query, where, orderBy, limit,
-  serverTimestamp, increment, writeBatch,
+  serverTimestamp, increment, writeBatch, runTransaction,
   signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged
 } from "./firebase.js";
 
@@ -2182,17 +2182,26 @@ const Prestamos = {
     Utils.loading(true);
 
     try {
-      await addDoc(collection(db, this.coleccion), {
-        libroId, libroTitulo, usuarioId, usuarioNombre,
-        fechaPrestamo: new Date(fechaPrestamo + "T12:00:00"),
-        fechaDevolucion: new Date(fechaDevolucion + "T12:00:00"),
-        estado: "activo",
-        renovaciones: 0,
-        createdAt: serverTimestamp()
-      });
-
-      await updateDoc(doc(db, "libros", libroId), {
-        disponibles: increment(-1)
+      // Transacción: verificar stock disponible y descontar en una sola operación
+      const libroRef = doc(db, "libros", libroId);
+      await runTransaction(db, async (transaction) => {
+        const libroSnap = await transaction.get(libroRef);
+        if (!libroSnap.exists()) throw new Error("El libro no existe.");
+        const actuales = libroSnap.data().disponibles ?? 0;
+        if (actuales <= 0) {
+          throw new Error("NO_STOCK");
+        }
+        // Crear el préstamo dentro de la transacción
+        const prestamoRef = doc(collection(db, this.coleccion));
+        transaction.set(prestamoRef, {
+          libroId, libroTitulo, usuarioId, usuarioNombre,
+          fechaPrestamo: new Date(fechaPrestamo + "T12:00:00"),
+          fechaDevolucion: new Date(fechaDevolucion + "T12:00:00"),
+          estado: "activo",
+          renovaciones: 0,
+          createdAt: serverTimestamp()
+        });
+        transaction.update(libroRef, { disponibles: increment(-1) });
       });
 
       AuditLog.registrar("crear", "prestamo", null, `Préstamo: "${libroTitulo}" → ${usuarioNombre}`);
@@ -2208,7 +2217,12 @@ const Prestamos = {
       SearchSelect.reset('pres-usuario-input');
     } catch (error) {
       console.error("Error al registrar prestamo:", error);
-      UI.mostrarAlerta("alert-prestamo", "Error al registrar el prestamo.", "danger");
+      if (error.message === "NO_STOCK") {
+        UI.mostrarAlerta("alert-prestamo", "No hay stock disponible para este libro. Recargá el catalogo e intentá de nuevo.", "danger");
+        Prestamos.cargarSelects();
+      } else {
+        UI.mostrarAlerta("alert-prestamo", "Error al registrar el prestamo.", "danger");
+      }
     } finally {
       Utils.loading(false);
     }
