@@ -12,6 +12,8 @@
   <!-- jsPDF + autoTable para exportar PDF -->
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+  <!-- Chart.js para gráficos en Reportes -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -508,6 +510,23 @@
             </button>
           </div>
           <div class="stats-grid" id="stats-reportes"></div>
+
+          <!-- Gráficos -->
+          <div class="charts-grid" id="charts-reportes">
+            <div class="table-card chart-card">
+              <h3>Prestamos por mes</h3>
+              <div class="chart-wrap"><canvas id="chart-prestamos-mes"></canvas></div>
+            </div>
+            <div class="table-card chart-card">
+              <h3>Prestamos por tipo de usuario</h3>
+              <div class="chart-wrap chart-wrap-sm"><canvas id="chart-por-tipo"></canvas></div>
+            </div>
+            <div class="table-card chart-card">
+              <h3>Estado de prestamos</h3>
+              <div class="chart-wrap chart-wrap-sm"><canvas id="chart-estado"></canvas></div>
+            </div>
+          </div>
+
           <div class="table-card">
             <div class="table-header"><h3>Libros más prestados</h3></div>
             <!-- FEATURE 5: Sortable headers + table id -->

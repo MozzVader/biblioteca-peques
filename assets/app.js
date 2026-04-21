@@ -483,6 +483,10 @@ const UI = {
     const newTheme = isDark ? "light" : "dark";
     html.setAttribute("data-theme", newTheme);
     localStorage.setItem("biblioescolar-theme", newTheme);
+    // Re-render charts if on Reportes page
+    if (document.getElementById("sec-reportes")?.classList.contains("active")) {
+      Reportes.render();
+    }
   },
 
   /**
@@ -3134,6 +3138,9 @@ const Reportes = {
 
       this._renderRanking();
 
+      // Render charts
+      this._renderCharts(prestamosSnap, usuariosMap, librosMap, hayFiltroFecha);
+
       // Init sortable headers for reportes table
       Utils.initSortableHeaders("tabla-reportes-wrapper", (column, direction) => {
         this._sortColumn = column;
@@ -3190,7 +3197,233 @@ const Reportes = {
       html = `<tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--texto-muted)">No hay datos suficientes.</td></tr>`;
     }
     tbody.innerHTML = html;
-  }
+  },
+
+  // ── Chart helpers ────────────────────────────────────────────
+  _chartInstances: {},
+
+  _chartColors() {
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const text = isDark ? "#cbd5e1" : "#374151";
+    const grid = isDark ? "rgba(148,163,184,0.12)" : "rgba(0,0,0,0.06)";
+    const tooltipBg = isDark ? "#1e293b" : "#fff";
+    const tooltipText = isDark ? "#e2e8f0" : "#1f2937";
+    return {
+      text, grid, tooltipBg, tooltipText,
+      primary: "#1c3e56",
+      verde: "#1d9e75",
+      rojo: "#A32D2D",
+      azul: "#3b82f6",
+      amarillo: "#d97706",
+      verdeSoft: isDark ? "rgba(29,158,117,0.2)" : "rgba(29,158,117,0.15)",
+      rojoSoft: isDark ? "rgba(163,45,45,0.2)" : "rgba(163,45,45,0.15)",
+      azulSoft: isDark ? "rgba(59,130,246,0.2)" : "rgba(59,130,246,0.15)",
+    };
+  },
+
+  _chartDefaults() {
+    const c = this._chartColors();
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { color: c.text, font: { family: "'DM Sans','Montserrat',sans-serif", size: 12 }, padding: 14, usePointStyle: true, pointStyleWidth: 10 },
+          position: "bottom",
+        },
+        tooltip: {
+          backgroundColor: c.tooltipBg,
+          titleColor: c.tooltipText,
+          bodyColor: c.tooltipText,
+          borderColor: c.grid,
+          borderWidth: 1,
+          cornerRadius: 8,
+          padding: 10,
+          titleFont: { family: "'DM Sans','Montserrat',sans-serif", weight: "600" },
+          bodyFont: { family: "'DM Sans','Montserrat',sans-serif" },
+        },
+      },
+    };
+  },
+
+  _destroyCharts() {
+    Object.values(this._chartInstances).forEach(ch => ch.destroy());
+    this._chartInstances = {};
+  },
+
+  _renderCharts(prestamosSnap, usuariosMap, librosMap, hayFiltroFecha) {
+    this._destroyCharts();
+
+    const filtroDesde = document.getElementById("filtro-reportes-desde")?.value;
+    const filtroHasta = document.getElementById("filtro-reportes-hasta")?.value;
+
+    // Gather filtered data
+    const porMes = {};
+    const porTipo = { Alumno: 0, Docente: 0, Administrativo: 0, "Sin tipo": 0 };
+    const porEstado = { Activo: 0, Devuelto: 0, Vencido: 0 };
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    prestamosSnap.forEach(docSnap => {
+      const data = docSnap.data();
+      if (hayFiltroFecha && !Utils.filtrarPorFecha("filtro-reportes-desde", "filtro-reportes-hasta", data.fechaPrestamo)) return;
+
+      const fechaP = Utils.toDate(data.fechaPrestamo);
+
+      // By month
+      if (fechaP) {
+        const key = `${fechaP.getFullYear()}-${String(fechaP.getMonth() + 1).padStart(2, "0")}`;
+        porMes[key] = (porMes[key] || 0) + 1;
+      }
+
+      // By type
+      const usu = usuariosMap[data.usuarioId];
+      const tipo = usu?.tipo || "Sin tipo";
+      if (porTipo[tipo] !== undefined) porTipo[tipo]++;
+      else porTipo["Sin tipo"]++;
+
+      // By status
+      if (data.estado === "devuelto") porEstado.Devuelto++;
+      else {
+        const fechaDev = Utils.toDate(data.fechaDevolucion);
+        if (fechaDev && fechaDev < hoy) porEstado.Vencido++;
+        else porEstado.Activo++;
+      }
+    });
+
+    // Sort months chronologically
+    const sortedMonths = Object.keys(porMes).sort();
+
+    // Determine x-axis range (last 6 months or filtered range)
+    let labels;
+    if (sortedMonths.length === 0) {
+      labels = [];
+    } else if (hayFiltroFecha && sortedMonths.length <= 12) {
+      labels = sortedMonths;
+    } else {
+      // Show last 6 months
+      labels = sortedMonths.slice(-6);
+    }
+
+    const data = labels.map(m => porMes[m] || 0);
+    const displayLabels = labels.map(m => {
+      const [y, mo] = m.split("-");
+      const meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+      return `${meses[parseInt(mo) - 1]} ${y.slice(2)}`;
+    });
+
+    this._chartPrestamosMes(displayLabels, data);
+    this._chartPorTipo(porTipo);
+    this._chartEstado(porEstado);
+  },
+
+  // ── Chart: Préstamos por mes (line) ──────────────────────────
+  _chartPrestamosMes(labels, data) {
+    const ctx = document.getElementById("chart-prestamos-mes");
+    if (!ctx) return;
+    const c = this._chartColors();
+    const defaults = this._chartDefaults();
+
+    this._chartInstances.prestamosMes = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: "Prestamos",
+          data,
+          borderColor: c.primary,
+          backgroundColor: c.azulSoft,
+          fill: true,
+          tension: 0.35,
+          pointRadius: data.length > 12 ? 2 : 4,
+          pointHoverRadius: 6,
+          pointBackgroundColor: c.primary,
+          borderWidth: 2.5,
+        }],
+      },
+      options: {
+        ...defaults,
+        scales: {
+          x: { grid: { display: false }, ticks: { color: c.text, font: { size: 11 } } },
+          y: { beginAtZero: true, grid: { color: c.grid }, ticks: { color: c.text, font: { size: 11 }, stepSize: 1 } },
+        },
+        plugins: {
+          ...defaults.plugins,
+          legend: { display: false },
+        },
+      },
+    });
+  },
+
+  // ── Chart: Por tipo de usuario (doughnut) ────────────────────
+  _chartPorTipo(porTipo) {
+    const ctx = document.getElementById("chart-por-tipo");
+    if (!ctx) return;
+    const c = this._chartColors();
+    const defaults = this._chartDefaults();
+
+    // Filter out zero values
+    const filtered = Object.entries(porTipo).filter(([, v]) => v > 0);
+    if (filtered.length === 0) return;
+
+    const colors = [c.primary, c.verde, c.amarillo, "#94a3b8"];
+    const bgColors = filtered.map((_, i) => colors[i % colors.length]);
+
+    this._chartInstances.porTipo = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: filtered.map(([k]) => k),
+        datasets: [{
+          data: filtered.map(([, v]) => v),
+          backgroundColor: bgColors,
+          borderWidth: 0,
+          hoverOffset: 6,
+        }],
+      },
+      options: {
+        ...defaults,
+        cutout: "60%",
+        plugins: {
+          ...defaults.plugins,
+          legend: { ...defaults.plugins.legend, position: "bottom" },
+        },
+      },
+    });
+  },
+
+  // ── Chart: Estado de préstamos (bar) ─────────────────────────
+  _chartEstado(porEstado) {
+    const ctx = document.getElementById("chart-estado");
+    if (!ctx) return;
+    const c = this._chartColors();
+    const defaults = this._chartDefaults();
+
+    this._chartInstances.estado = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: ["Activos", "Devueltos", "Vencidos"],
+        datasets: [{
+          data: [porEstado.Activo, porEstado.Devuelto, porEstado.Vencido],
+          backgroundColor: [c.azulSoft, c.verdeSoft, c.rojoSoft],
+          borderColor: [c.azul, c.verde, c.rojo],
+          borderWidth: 1.5,
+          borderRadius: 6,
+          maxBarThickness: 52,
+        }],
+      },
+      options: {
+        ...defaults,
+        scales: {
+          x: { grid: { display: false }, ticks: { color: c.text, font: { size: 11 } } },
+          y: { beginAtZero: true, grid: { color: c.grid }, ticks: { color: c.text, font: { size: 11 }, stepSize: 1 } },
+        },
+        plugins: {
+          ...defaults.plugins,
+          legend: { display: false },
+        },
+      },
+    });
+  },
 };
 
 
