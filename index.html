@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Biblioteca - CEBAS 2</title>
-  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-16.png">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/estilos.css">
   <!-- SheetJS para importar/exportar Excel -->
@@ -23,7 +23,7 @@
   ════════════════════════════════════════ -->
   <div id="pantalla-login" class="login-overlay">
     <div class="login-card">
-      <div class="login-logo">📚</div>
+      <img class="login-logo" src="assets/logo-cebas48.png" alt="CEBAS">
       <h1 class="login-title">Biblioteca - CEBAS 2</h1>
       <p class="login-subtitle" id="login-subtitle-text">Ingresá para continuar</p>
 
@@ -84,7 +84,7 @@
       <button class="btn-hamburger" id="btn-hamburger" onclick="UI.toggleSidebar()" title="Menú">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
-      <div class="logo-icon">📚</div>
+      <img class="logo-icon" src="assets/logo-cebas48.png" alt="CEBAS">
       <h1>Biblioteca - CEBAS 2</h1>
       <div class="user-badge">
         <div class="avatar" id="avatar-initials">--</div>
@@ -516,7 +516,7 @@
                 <tr>
                   <th class="sortable" data-sort="titulo">Título <span class="sort-arrow"></span></th>
                   <th class="sortable" data-sort="autor">Autor <span class="sort-arrow"></span></th>
-                  <th class="sortable" data-sort="count">Veces prestado <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="count" style="text-align:center">Veces prestado <span class="sort-arrow"></span></th>
                 </tr>
               </thead>
               <tbody id="tabla-mas-prestados"></tbody>

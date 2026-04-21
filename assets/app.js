@@ -3127,7 +3127,7 @@ const Reportes = {
         </div>
         <div class="stat-card">
           <div class="label">Usuario mas activo</div>
-          <div class="value" style="font-size:18px">${Utils._esc(topUsuario.nombre)}</div>
+          <div class="value" style="font-size:18px;min-height:30px;display:flex;align-items:flex-end">${Utils._esc(topUsuario.nombre)}</div>
           <div class="trend">${topUsuario.cantidad} prestamos</div>
         </div>
       `;
@@ -3161,7 +3161,7 @@ const Reportes = {
           <tr>
             <td>${medalla} <strong>${Utils._esc(libro.titulo)}</strong></td>
             <td>${Utils._esc(libro.autor)}</td>
-            <td><span class="badge badge-azul">${libro.count}</span></td>
+            <td style="text-align:center"><span class="badge badge-azul">${libro.count}</span></td>
           </tr>`;
       });
     }
@@ -3183,7 +3183,7 @@ const Reportes = {
         <tr>
           <td>${medalla} <strong>${Utils._esc(libro.titulo)}</strong></td>
           <td>${Utils._esc(libro.autor)}</td>
-          <td><span class="badge badge-azul">${libro.count}</span></td>
+          <td style="text-align:center"><span class="badge badge-azul">${libro.count}</span></td>
         </tr>`;
     });
     if (!html) {
