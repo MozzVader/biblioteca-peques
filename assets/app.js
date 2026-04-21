@@ -3658,6 +3658,9 @@ const Exportar = {
   async ejecutar(formato) {
     Utils.loading(true);
     try {
+      if (formato === "pdf" && !window.jspdf) {
+        throw new Error("jsPDF no se cargo correctamente. Recargá la página e intentá de nuevo.");
+      }
       if (this._tipo === "catalogo") {
         if (formato === "pdf") await this._catalogoPDF();
         else await this._catalogoXLSX();
@@ -3669,7 +3672,7 @@ const Exportar = {
       Toast.mostrar("Exportacion exitosa", "success");
     } catch (error) {
       console.error("Error al exportar:", error);
-      Toast.mostrar("Error al exportar los datos.", "error");
+      Toast.mostrar(error.message || "Error al exportar los datos.", "error");
     } finally {
       Utils.loading(false);
     }
