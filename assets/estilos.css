@@ -1922,3 +1922,214 @@ th.sortable.desc .sort-arrow {
     justify-content: center;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   COMPROBANTE DE PRÉSTAMO / DEVOLUCIÓN
+   ══════════════════════════════════════════════════════════════ */
+
+.comprobante {
+  padding: 1.5rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #1a1a2e;
+}
+
+.comprobante-header {
+  text-align: center;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px dashed var(--primary, #1c3e56);
+}
+
+.comprobante-header .comprobante-logo {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 0.5rem;
+}
+
+.comprobante-header .comprobante-titulo {
+  font-size: 1.15rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--primary, #1c3e56);
+}
+
+.comprobante-header .comprobante-subtitulo {
+  font-size: 0.85rem;
+  color: #555;
+  margin-top: 2px;
+}
+
+.comprobante-body {
+  margin: 1rem 0;
+}
+
+.comprobante-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid #e8e8e8;
+  font-size: 0.92rem;
+}
+
+.comprobante-field:last-child {
+  border-bottom: none;
+}
+
+.comprobante-label {
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  margin-right: 1rem;
+}
+
+.comprobante-value {
+  text-align: right;
+  color: #1a1a2e;
+  word-break: break-word;
+}
+
+.comprobante-footer {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 2px dashed var(--primary, #1c3e56);
+  text-align: center;
+}
+
+.comprobante-firma {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2rem;
+}
+
+.comprobante-firma-col {
+  text-align: center;
+  flex: 1;
+}
+
+.comprobante-firma-linea {
+  width: 70%;
+  border-bottom: 1px solid #333;
+  margin: 0 auto 0.4rem;
+}
+
+.comprobante-firma-texto {
+  font-size: 0.75rem;
+  color: #666;
+  font-style: italic;
+}
+
+.comprobante-fecha-impresion {
+  font-size: 0.72rem;
+  color: #999;
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.comprobante-tipo-badge {
+  display: inline-block;
+  padding: 3px 14px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.75rem;
+}
+
+.comprobante-tipo-badge.prestamo {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.comprobante-tipo-badge.devolucion {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   @media print — Ocultar todo excepto el comprobante
+   ══════════════════════════════════════════════════════════════ */
+
+@media print {
+  /* Ocultar toda la app */
+  body > *:not(#modal-comprobante) {
+    display: none !important;
+  }
+
+  /* El overlay ocupa toda la pantalla */
+  #modal-comprobante {
+    position: static !important;
+    display: block !important;
+    background: white !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  #modal-comprobante .modal {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* Ocultar botones al imprimir */
+  #comprobante-botones {
+    display: none !important;
+  }
+
+  /* Ajustar colores para impresión */
+  .comprobante {
+    color: #000 !important;
+    padding: 0 !important;
+  }
+
+  .comprobante-header {
+    border-bottom-color: #333 !important;
+  }
+
+  .comprobante-header .comprobante-titulo {
+    color: #000 !important;
+  }
+
+  .comprobante-field {
+    border-bottom-color: #ccc !important;
+  }
+
+  .comprobante-label {
+    color: #000 !important;
+  }
+
+  .comprobante-footer {
+    border-top-color: #333 !important;
+  }
+
+  .comprobante-tipo-badge.prestamo {
+    background: #f0f0f0 !important;
+    color: #000 !important;
+    border: 1px solid #999;
+  }
+
+  .comprobante-tipo-badge.devolucion {
+    background: #f0f0f0 !important;
+    color: #000 !important;
+    border: 1px solid #999;
+  }
+
+  .comprobante-firma-linea {
+    border-bottom-color: #000 !important;
+  }
+
+  .comprobante-fecha-impresion {
+    color: #666 !important;
+  }
+}

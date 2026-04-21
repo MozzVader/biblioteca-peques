@@ -895,6 +895,22 @@
     </div>
   </div>
 
+  <!-- Modal: Comprobante de préstamo / devolución -->
+  <div class="overlay" id="modal-comprobante">
+    <div class="modal" style="max-width:480px">
+      <div id="comprobante-contenido">
+        <!-- Se llena dinámicamente desde app.js -->
+      </div>
+      <div class="modal-footer" id="comprobante-botones">
+        <button class="btn" onclick="UI.cerrarModal('modal-comprobante')">Cerrar</button>
+        <button class="btn btn-primary" onclick="Comprobante.imprimir()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Imprimir comprobante
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Carga Masiva de Libros -->
   <div class="overlay" id="modal-carga-masiva" onclick="CargaMasiva.cerrarModal(event)">
     <div class="modal" style="max-width:780px;max-height:90vh;overflow-y:auto" onclick="event.stopPropagation()">

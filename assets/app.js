@@ -2028,6 +2028,116 @@ const Usuarios = {
 
 
 // ══════════════════════════════════════════════════════════════
+//  COMPROBANTE — Constancia de préstamo / devolución
+// ══════════════════════════════════════════════════════════════
+
+const Comprobante = {
+  _datos: null,
+
+  /**
+   * Muestra el modal con el comprobante.
+   * @param {"prestamo"|"devolucion"} tipo
+   * @param {Object} datos — { libroTitulo, usuarioNombre, fechaPrestamo, fechaDevolucion, fechaRealDevolucion?, dni? }
+   */
+  mostrar(tipo, datos) {
+    this._datos = { tipo, ...datos };
+
+    const esPrestamo = tipo === "prestamo";
+    const badgeClass = esPrestamo ? "prestamo" : "devolucion";
+    const badgeTexto = esPrestamo ? "Constancia de Préstamo" : "Constancia de Devolución";
+
+    const fechaPrest = datos.fechaPrestamo
+      ? Utils.formatDate(datos.fechaPrestamo)
+      : "—";
+    const fechaDev = datos.fechaDevolucion
+      ? Utils.formatDate(datos.fechaDevolucion)
+      : "—";
+    const fechaRealDev = datos.fechaRealDevolucion
+      ? Utils.formatDate(datos.fechaRealDevolucion)
+      : null;
+
+    let camposHTML = `
+      <div class="comprobante-field">
+        <span class="comprobante-label">Libro</span>
+        <span class="comprobante-value"><strong>${Utils._esc(datos.libroTitulo)}</strong></span>
+      </div>
+      <div class="comprobante-field">
+        <span class="comprobante-label">Alumno / Usuario</span>
+        <span class="comprobante-value">${Utils._esc(datos.usuarioNombre)}</span>
+      </div>`;
+
+    if (datos.dni) {
+      camposHTML += `
+      <div class="comprobante-field">
+        <span class="comprobante-label">DNI</span>
+        <span class="comprobante-value">${Utils._esc(datos.dni)}</span>
+      </div>`;
+    }
+
+    camposHTML += `
+      <div class="comprobante-field">
+        <span class="comprobante-label">Fecha de préstamo</span>
+        <span class="comprobante-value">${fechaPrest}</span>
+      </div>
+      <div class="comprobante-field">
+        <span class="comprobante-label">Fecha de devolución</span>
+        <span class="comprobante-value">${fechaDev}</span>
+      </div>`;
+
+    if (fechaRealDev) {
+      camposHTML += `
+      <div class="comprobante-field">
+        <span class="comprobante-label">Devolución real</span>
+        <span class="comprobante-value">${fechaRealDev}</span>
+      </div>`;
+    }
+
+    const html = `
+      <div class="comprobante">
+        <div class="comprobante-header">
+          <img class="comprobante-logo" src="assets/logo-cebas48.png" alt="CEBAS">
+          <div class="comprobante-titulo">Biblioteca CEBAS</div>
+          <div class="comprobante-subtitulo">Centro de Educación Básica para Adultos y Secundaria</div>
+          <div style="margin-top:0.75rem">
+            <span class="comprobante-tipo-badge ${badgeClass}">${badgeTexto}</span>
+          </div>
+        </div>
+        <div class="comprobante-body">
+          ${camposHTML}
+        </div>
+        <div class="comprobante-footer">
+          <div class="comprobante-firma">
+            <div class="comprobante-firma-col">
+              <div class="comprobante-firma-linea"></div>
+              <div class="comprobante-firma-texto">Firma del Bibliotecario</div>
+            </div>
+            <div class="comprobante-firma-col">
+              <div class="comprobante-firma-linea"></div>
+              <div class="comprobante-firma-texto">Firma del Alumno / Usuario</div>
+            </div>
+          </div>
+          <div class="comprobante-fecha-impresion">
+            Generado el ${new Date().toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+          </div>
+        </div>
+      </div>`;
+
+    document.getElementById("comprobante-contenido").innerHTML = html;
+    UI.abrirModal("modal-comprobante");
+  },
+
+  /**
+   * Imprime el comprobante usando window.print()
+   */
+  imprimir() {
+    window.print();
+  }
+};
+
+window.Comprobante = Comprobante;
+
+
+// ══════════════════════════════════════════════════════════════
 //  PRESTAMOS — Gestion de prestamos y devoluciones (with filter, sort, pagination)
 // ══════════════════════════════════════════════════════════════
 
@@ -2253,6 +2363,20 @@ const Prestamos = {
       // Feature 4: Reset search selects after successful registration
       SearchSelect.reset('pres-libro-input');
       SearchSelect.reset('pres-usuario-input');
+
+      // Mostrar comprobante de préstamo
+      let usuarioDni = null;
+      try {
+        const usuarioSnap = await getDoc(doc(db, "usuarios", usuarioId));
+        if (usuarioSnap.exists()) usuarioDni = usuarioSnap.data().dni || null;
+      } catch (e) { /* ignorar si no se puede obtener el DNI */ }
+      Comprobante.mostrar("prestamo", {
+        libroTitulo,
+        usuarioNombre,
+        fechaPrestamo: new Date(fechaPrestamo + "T12:00:00"),
+        fechaDevolucion: new Date(fechaDevolucion + "T12:00:00"),
+        dni: usuarioDni
+      });
     } catch (error) {
       console.error("Error al registrar prestamo:", error);
       if (error.message === "NO_STOCK") {
@@ -2275,9 +2399,11 @@ const Prestamos = {
       const docSnap = await getDoc(doc(db, this.coleccion, id));
       const data = docSnap.data();
 
+      const fechaRealDevolucion = new Date();
+
       await updateDoc(doc(db, this.coleccion, id), {
         estado: "devuelto",
-        fechaRealDevolucion: new Date()
+        fechaRealDevolucion
       });
 
       await updateDoc(doc(db, "libros", data.libroId), {
@@ -2290,6 +2416,21 @@ const Prestamos = {
       this.render();
       Vencidos.actualizarBadge();
       Notificaciones.cargar();
+
+      // Mostrar comprobante de devolución
+      let usuarioDni = null;
+      try {
+        const usuarioSnap = await getDoc(doc(db, "usuarios", data.usuarioId));
+        if (usuarioSnap.exists()) usuarioDni = usuarioSnap.data().dni || null;
+      } catch (e) { /* ignorar si no se puede obtener el DNI */ }
+      Comprobante.mostrar("devolucion", {
+        libroTitulo: data.libroTitulo,
+        usuarioNombre: data.usuarioNombre,
+        fechaPrestamo: data.fechaPrestamo,
+        fechaDevolucion: data.fechaDevolucion,
+        fechaRealDevolucion,
+        dni: usuarioDni
+      });
     } catch (error) {
       console.error("Error al registrar devolucion:", error);
       UI.mostrarAlerta("alert-prestamo", "Error al registrar devolucion.", "danger");
