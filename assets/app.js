@@ -668,13 +668,15 @@ const Roles = {
 const Auth = {
   mostrarRegistro() {
     document.getElementById("form-login").style.display = "none";
-    document.getElementById("form-registro")?.style.display = "";
+    const fr = document.getElementById("form-registro");
+    if (fr) fr.style.display = "";
     document.getElementById("login-subtitle-text").textContent = "Creá tu cuenta";
   },
 
   mostrarLogin() {
     document.getElementById("form-login").style.display = "";
-    document.getElementById("form-registro")?.style.display = "none";
+    const fr = document.getElementById("form-registro");
+    if (fr) fr.style.display = "none";
     document.getElementById("login-subtitle-text").textContent = "Ingresá para continuar";
   },
 
