@@ -86,7 +86,7 @@ const AuditLog = {
       if (!tbody) return;
 
       if (datosPaginados.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--texto-muted)">No hay eventos registrados</td></tr>';
+        tbody.innerHTML = UI.emptyState("list", "No hay eventos registrados", 5);
         document.getElementById("pagination-auditlog").innerHTML = "";
         return;
       }
@@ -461,6 +461,38 @@ const UI = {
     timer = setTimeout(dismiss, duracion);
 
     container.appendChild(el);
+  },
+
+  /**
+   * Genera un estado vacío ilustrado para tablas.
+   * @param {"book"|"user"|"loan"|"overdue"|"history"|"chart"|"list"|"bell"|"search"|"box"|"warning"} icon
+   * @param {string} msg - Mensaje principal
+   * @param {number} [colspan=6] - colspan del <td>
+   * @returns {string} HTML de la fila
+   */
+  emptyState(icon, msg, colspan = 6) {
+    const svgs = {
+      book: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8v48h48V8"/><path d="M32 8v48"/><path d="M8 8h48"/><path d="M15 18h10M15 26h7M15 34h9"/><path d="M39 18h10M39 26h7M39 34h9"/></svg>`,
+      user: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="22" r="10"/><path d="M12 56c0-11 9-20 20-20s20 9 20 20"/></svg>`,
+      loan: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="6" width="40" height="52" rx="3"/><path d="M22 20h20M22 28h20M22 36h14"/><circle cx="44" cy="44" r="8" fill="var(--fondo-card)" stroke="var(--primary)" stroke-width="1.5"/><path d="M44 40v8M40 44h8"/></svg>`,
+      overdue: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="24"/><path d="M32 14v18l12 8"/><path d="M20 8l4 4M44 8l-4 4" stroke-width="2"/></svg>`,
+      history: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="24"/><path d="M32 14v18l12 8"/><path d="M14 32h8M42 32h8"/></svg>`,
+      chart: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="40" width="10" height="16" rx="1"/><rect x="22" y="28" width="10" height="28" rx="1"/><rect x="36" y="18" width="10" height="38" rx="1"/><rect x="50" y="8" width="10" height="48" rx="1"/></svg>`,
+      list: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="10" y="8" width="44" height="48" rx="3"/><path d="M22 22h20M22 32h20M22 42h20"/><circle cx="16" cy="22" r="2" fill="currentColor"/><circle cx="16" cy="32" r="2" fill="currentColor"/><circle cx="16" cy="42" r="2" fill="currentColor"/></svg>`,
+      bell: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M32 6a18 18 0 0 1 18 18v14l4 6H10l4-6V24A18 18 0 0 1 32 6z"/><path d="M24 52a8 8 0 0 0 16 0"/><line x1="50" y1="18" x2="58" y2="10" stroke-width="2"/><path d="M56 10h4v4"/></svg>`,
+      search: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="28" r="16"/><path d="M40 40l14 14" stroke-width="2.5"/><path d="M21 24h14M21 30h10" stroke-dasharray="3 3"/></svg>`,
+      box: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="10" y="14" width="44" height="40" rx="3"/><path d="M10 22h44"/><path d="M32 14v-4"/><path d="M24 32h16M28 38h8"/></svg>`,
+      warning: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="24"/><path d="M32 20v14"/><circle cx="32" cy="42" r="2" fill="currentColor"/></svg>`
+    };
+    return `<tr><td colspan="${colspan}" class="empty-state-td"><div class="empty-state"><div class="empty-state-icon">${svgs[icon] || svgs.box}</div><div class="empty-state-msg">${msg}</div></div></td></tr>`;
+  },
+
+  /** Retorna solo el SVG de un icono de empty state (para contextos fuera de tablas). */
+  emptyIcon(icon) {
+    const tmp = document.createElement("div");
+    tmp.innerHTML = this.emptyState(icon, "");
+    const svg = tmp.querySelector("svg");
+    return svg ? svg.outerHTML : "";
   },
 
   /**
@@ -973,9 +1005,10 @@ const Catalogo = {
       });
 
       if (!html) {
-        html = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--texto-muted)">
-          ${filtro || filtroGenero ? "No se encontraron resultados." : "Aun no hay libros en el catalogo."}
-        </td></tr>`;
+        html = UI.emptyState(
+          filtro || filtroGenero ? "search" : "book",
+          filtro || filtroGenero ? "No se encontraron resultados." : "Aún no hay libros en el catálogo."
+        );
       }
 
       tbody.innerHTML = html;
@@ -1536,9 +1569,10 @@ const Usuarios = {
       });
 
       if (!html) {
-        html = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--texto-muted)">
-          ${filtro || filtroTipo ? "No se encontraron resultados." : "Aun no hay usuarios registrados."}
-        </td></tr>`;
+        html = UI.emptyState(
+          filtro || filtroTipo ? "search" : "user",
+          filtro || filtroTipo ? "No se encontraron resultados." : "Aún no hay usuarios registrados."
+        );
       }
 
       tbody.innerHTML = html;
@@ -2139,9 +2173,10 @@ const Prestamos = {
 
       if (!html) {
         const hayFiltro = filtro || filtroEstado || document.getElementById("filtro-prestamos-desde")?.value || document.getElementById("filtro-prestamos-hasta")?.value;
-        html = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--texto-muted)">
-          ${hayFiltro ? "No se encontraron resultados." : "No hay prestamos registrados."}
-        </td></tr>`;
+        html = UI.emptyState(
+          hayFiltro ? "search" : "loan",
+          hayFiltro ? "No se encontraron resultados." : "No hay préstamos registrados."
+        );
       }
 
       tbody.innerHTML = html;
@@ -2453,9 +2488,10 @@ const Vencidos = {
 
       let html = "";
       if (sorted.length === 0) {
-        html = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--texto-muted)">
-          ${filtro ? "No se encontraron resultados." : "No hay prestamos vencidos. Todo al dia."}
-        </td></tr>`;
+        html = UI.emptyState(
+          filtro ? "search" : "overdue",
+          filtro ? "No se encontraron resultados." : "No hay préstamos vencidos. ¡Todo al día!"
+        , 5);
       } else {
         sorted.forEach((item) => {
           html += `
@@ -2513,7 +2549,7 @@ const Vencidos = {
         </tr>`;
     });
     if (!html) {
-      html = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--texto-muted)">No hay prestamos vencidos.</td></tr>`;
+      html = UI.emptyState("overdue", "No hay préstamos vencidos.", 5);
     }
     tbody.innerHTML = html;
   },
@@ -2563,7 +2599,7 @@ const MiHistorial = {
     const tbody = document.getElementById("tabla-mihistorial");
     if (!tbody) return;
     if (!Roles.usuarioDocId) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--texto-muted)">No se pudo identificar tu usuario.</td></tr>`;
+      tbody.innerHTML = UI.emptyState("warning", "No se pudo identificar tu usuario.");
       return;
     }
 
@@ -2627,7 +2663,7 @@ const MiHistorial = {
 
       let html = "";
       if (pageData.length === 0) {
-        html = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--texto-muted)">No tenés préstamos registrados.</td></tr>`;
+        html = UI.emptyState("history", "No tenés préstamos registrados.");
       } else {
         pageData.forEach(item => {
           const badge = item.estado === "Devuelto" ? "badge-verde" : item.estado === "Vencido" ? "badge-rojo" : "badge-azul";
@@ -2767,7 +2803,7 @@ const Notificaciones = {
         <div class="notif-header">
           <span>Notificaciones</span>
         </div>
-        <div class="notif-empty">Todo al dia. Sin alertas.</div>
+        <div class="notif-empty"><div class="empty-state" style="padding:1.5rem 0.5rem 1rem"><div class="empty-state-icon" style="width:40px;height:40px">${UI.emptyIcon("bell")}</div><div class="empty-state-msg" style="font-size:0.8rem">Todo al día. Sin alertas.</div></div></div>
       `;
       return;
     }
@@ -2871,7 +2907,7 @@ const SearchSelect = {
     inst.highlightedIndex = -1;
 
     if (items.length === 0) {
-      dropdown.innerHTML = '<div class="combobox-option" style="color:var(--texto-muted);cursor:default">Sin resultados</div>';
+      dropdown.innerHTML = `<div class="combobox-option" style="color:var(--texto-muted);cursor:default;display:flex;align-items:center;gap:8px;justify-content:center;padding:1rem">${UI.emptyIcon("search")}<span>Sin resultados</span></div>`;
       return;
     }
 
@@ -2991,9 +3027,7 @@ const Dashboard = {
     let html = "";
 
     if (ultimos5.length === 0) {
-      html = `<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--texto-muted)">
-        No hay prestamos registrados todavia.
-      </td></tr>`;
+      html = UI.emptyState("loan", "No hay préstamos registrados todavía.", 4);
     } else {
       ultimos5.forEach((p) => {
         let badge;
@@ -3196,9 +3230,7 @@ const Reportes = {
     const tbody = document.getElementById("tabla-mas-prestados");
     let rankingHTML = "";
     if (this._ranking.length === 0) {
-      rankingHTML = `<tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--texto-muted)">
-        No hay datos suficientes.
-      </td></tr>`;
+      rankingHTML = UI.emptyState("chart", "No hay datos suficientes.", 3);
     } else {
       this._ranking.forEach((libro, i) => {
         const medalla = libro.rank === 1 ? "🥇" : libro.rank === 2 ? "🥈" : libro.rank === 3 ? "🥉" : `${libro.rank}.`;
@@ -3232,7 +3264,7 @@ const Reportes = {
         </tr>`;
     });
     if (!html) {
-      html = `<tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--texto-muted)">No hay datos suficientes.</td></tr>`;
+      html = UI.emptyState("chart", "No hay datos suficientes.", 3);
     }
     tbody.innerHTML = html;
   },

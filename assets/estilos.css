@@ -1534,6 +1534,38 @@ th.sortable.desc .sort-arrow {
 }
 
 /* ════════════════════════════════════════════════════════
+   EMPTY STATE — Estados vacíos ilustrados
+   ════════════════════════════════════════════════════════ */
+.empty-state-td {
+  padding: 0 !important;
+  background: none !important;
+}
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem 2rem;
+  gap: 0.75rem;
+}
+.empty-state-icon {
+  width: 56px;
+  height: 56px;
+  color: var(--texto-muted);
+  opacity: 0.35;
+}
+.empty-state-icon svg {
+  width: 100%;
+  height: 100%;
+}
+.empty-state-msg {
+  font-size: 0.85rem;
+  color: var(--texto-muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* ════════════════════════════════════════════════════════
    FEATURE 4: COMBOBOX / SEARCH SELECT
    ════════════════════════════════════════════════════════ */
 .combobox {
