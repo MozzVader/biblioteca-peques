@@ -668,13 +668,13 @@ const Roles = {
 const Auth = {
   mostrarRegistro() {
     document.getElementById("form-login").style.display = "none";
-    document.getElementById("form-registro").style.display = "";
+    document.getElementById("form-registro")?.style.display = "";
     document.getElementById("login-subtitle-text").textContent = "Creá tu cuenta";
   },
 
   mostrarLogin() {
     document.getElementById("form-login").style.display = "";
-    document.getElementById("form-registro").style.display = "none";
+    document.getElementById("form-registro")?.style.display = "none";
     document.getElementById("login-subtitle-text").textContent = "Ingresá para continuar";
   },
 
@@ -855,11 +855,11 @@ const Auth = {
         document.getElementById("login-usuario").value = "";
         document.getElementById("login-password").value = "";
         this.mostrarLogin();
-        document.getElementById("reg-nombre").value = "";
-        document.getElementById("reg-dni").value = "";
-        document.getElementById("reg-email").value = "";
-        document.getElementById("reg-password").value = "";
-        document.getElementById("reg-password2").value = "";
+        document.getElementById("reg-nombre") && (document.getElementById("reg-nombre").value = "");
+        document.getElementById("reg-dni") && (document.getElementById("reg-dni").value = "");
+        document.getElementById("reg-email") && (document.getElementById("reg-email").value = "");
+        document.getElementById("reg-password") && (document.getElementById("reg-password").value = "");
+        document.getElementById("reg-password2") && (document.getElementById("reg-password2").value = "");
       }
     });
   }
@@ -4355,11 +4355,11 @@ document.getElementById("login-usuario").addEventListener("keypress", (e) => {
   if (e.key === "Enter") Auth.login();
 });
 
-// Permitir registro con Enter
-document.getElementById("reg-password2").addEventListener("keypress", (e) => {
+// Permitir registro con Enter (solo si el formulario existe)
+document.getElementById("reg-password2")?.addEventListener("keypress", (e) => {
   if (e.key === "Enter") Auth.registrar();
 });
-document.getElementById("reg-dni").addEventListener("keypress", (e) => {
+document.getElementById("reg-dni")?.addEventListener("keypress", (e) => {
   if (e.key === "Enter") Auth.registrar();
 });
 
