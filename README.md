@@ -31,18 +31,19 @@ con Firebase como backend.
 - Paginación
 - Selección masiva con checkboxes (eliminación batch)
 - Portada de libros desde URL (preview, edición, eliminación)
+- Búsqueda automática de portadas desde Open Library API (individual y lote)
 - Detalle de libro en modal con vista y modo edición
 - **Exportación a PDF y XLSX** con logo, resumen y tabla con filas alternadas
-- **Carga masiva de libros** desde Excel/CSV con plantilla descargable
 
 ### Préstamos y devoluciones
 - Registro de préstamos con autocompletado de libro y usuario (combobox)
 - Validación de stock con transacciones Firestore (evita préstamos duplicados)
 - Cálculo automático de fecha de devolución según configuración
 - Devolución con un solo clic
-- **Renovación** de préstamos activos (1 renovación permitida)
+- **Renovación** de préstamos activos (1 renovación permitida, extensión de 7 días)
 - Detección automática de préstamos vencidos
 - Historial personal de préstamos por usuario
+- **Comprobante imprimible** de préstamo y devolución (con logo, firmas y datos)
 - Búsqueda por título de libro o nombre de usuario
 - Filtro por estado (activo, devuelto, vencido)
 - **Filtrado por rango de fechas** (Desde / Hasta)
@@ -57,6 +58,7 @@ con Firebase como backend.
 - Búsqueda por nombre, DNI o tipo
 - Filtro por tipo de usuario
 - Contador de préstamos por usuario
+- **Carga masiva de usuarios** desde Excel/CSV con plantilla descargable
 - Ordenamiento y paginación
 
 ### Roles y permisos
@@ -89,7 +91,11 @@ con Firebase como backend.
 - Desglose por rol (alumnos vs docentes)
 - Usuario más activo
 - Ranking de top 10 libros más prestados con medallas
-- **Filtrado por rango de fechas** que actualiza todas las estadísticas
+- **3 gráficos interactivos** (Chart.js, carga bajo demanda):
+  - Préstamos por mes (gráfico de líneas)
+  - Préstamos por tipo de usuario (gráfico de torta)
+  - Estado de préstamos (gráfico de torta)
+- **Filtrado por rango de fechas** que actualiza todas las estadísticas y gráficos
 - Ordenamiento por cualquier columna
 
 ### Notificaciones
@@ -108,10 +114,13 @@ con Firebase como backend.
 - Nombre de la institución
 - Días de préstamo por defecto
 - Nombre del bibliotecario
+- **Carga masiva de libros** con plantilla descargable y búsqueda de portadas en lote
+- **Carga masiva de usuarios** con plantilla descargable
 
 ### Integración con Open Library API
-- Búsqueda automática de portadas y datos de libros
+- Búsqueda automática de portadas por ISBN
 - Autocompletado al agregar/editar libros
+- Búsqueda en lote durante carga masiva de libros
 
 ### UX / UI
 - Diseño glassmorphism con modo oscuro
@@ -123,6 +132,14 @@ con Firebase como backend.
 - Cierre de modales con Escape y clic en overlay
 - Loading spinner durante operaciones
 - Columnas ordenables en todas las tablas
+- **17 estados vacíos ilustrados** con SVGs temáticos (catálogo vacío, sin resultados, etc.)
+- **Pantalla de carga** (auth-splash) con logo animado durante la autenticación
+
+### Rendimiento
+- **CDN lazy-loading**: SheetJS, jsPDF, AutoTable y Chart.js se cargan bajo demanda solo cuando el usuario accede a la funcionalidad que los necesita, ahorrando ~1 MB de JavaScript en el primer paint
+- **Firestore cache**: las colecciones más consultadas (`libros`, `usuarios`, `prestamos`) se cachean en memoria y se reutilizan entre módulos, eliminando lecturas duplicadas
+- **Preconnect** para Google Fonts en ambas páginas (index y login)
+- **Login independiente**: `login.html` separado de la SPA principal, sin dependencias pesadas, para un inicio de sesión más rápido
 
 ---
 
@@ -137,6 +154,7 @@ con Firebase como backend.
 | **Firebase Firestore** | Base de datos NoSQL |
 | **jsPDF + autoTable** | Generación de PDF |
 | **SheetJS (XLSX)** | Importación y exportación de Excel |
+| **Chart.js** | Gráficos estadísticos (lazy-load) |
 | **Open Library API** | Datos de libros y portadas |
 | **GitHub Pages** | Deploy estático |
 
@@ -147,13 +165,18 @@ con Firebase como backend.
 ```
 bibliotecacebas/
 ├── index.html              # SPA principal (todas las vistas y modales)
+├── login.html              # Página de login independiente
 ├── assets/
-│   ├── app.js              # Lógica completa de la aplicación (~3800 líneas)
+│   ├── app.js              # Lógica completa de la aplicación (~4600 líneas)
+│   ├── login.js            # Lógica de autenticación (login independiente)
 │   ├── estilos.css         # Estilos con glassmorphism + dark mode
 │   ├── firebase.js         # Configuración e inicialización de Firebase
 │   ├── logo-cebas48.png    # Logo de la biblioteca
-│   ├── favicon.ico         # Favicon del sitio
-│   └── favicon-16.png      # Favicon PNG alternativo
+│   ├── favicon.ico         # Favicon ICO
+│   ├── favicon-16.png      # Favicon PNG
+│   ├── favicon.svg         # Favicon SVG
+│   └── readme.md           # Documentación interna de assets
+├── .gitignore
 └── README.md
 ```
 
@@ -169,7 +192,7 @@ bibliotecacebas/
   - `usuarios`
   - `prestamos`
   - `config`
-  - `auditlog`
+  - `audit_log`
 
 ### Configurar Firebase
 
