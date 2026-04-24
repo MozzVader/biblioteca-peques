@@ -8,7 +8,7 @@
 
 [![Deploy](https://img.shields.io/badge/deploy-GitHub%20Pages-success)](https://mozzvader.github.io/bibliotecacebas/)
 [![Firebase](https://img.shields.io/badge/Firebase-Auth%20%2B%20Firestore-orange)](https://firebase.google.com/)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-CC%20BY--NC--ND%204.0-green)](LICENSE.md)
 
 Aplicación web SPA para administrar el catálogo, préstamos, devoluciones y usuarios
 de una biblioteca escolar. Desarrollada con HTML, CSS y JavaScript vanilla,
@@ -248,4 +248,4 @@ sección *Usuarios*.
 
 ## 📄 Licencia
 
-Este proyecto está bajo la licencia [MIT](LICENSE).
+Este proyecto está bajo la licencia [CC BY-NC-ND 4.0](LICENSE.md).
