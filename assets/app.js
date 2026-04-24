@@ -1544,6 +1544,12 @@ const Usuarios = {
       tbody.innerHTML = html;
       Roles.aplicarBotones("usuarios");
 
+      // Ocultar/mostrar card de carga masiva según rol
+      const cardCargaMasivaUsu = document.getElementById("card-carga-masiva-usuarios");
+      if (cardCargaMasivaUsu) {
+        cardCargaMasivaUsu.style.display = Roles.puede("agregarUsuario") ? "" : "none";
+      }
+
       // Pagination controls
       Utils.renderPagination("pagination-usuarios", sorted.length, this._page, this._perPage, (page) => {
         this._page = page;
@@ -3942,6 +3948,325 @@ const CargaMasiva = {
 };
 
 window.CargaMasiva = CargaMasiva;
+
+// ══════════════════════════════════════════════════════════════
+//  CARGA MASIVA — Importar usuarios desde Excel/CSV
+// ══════════════════════════════════════════════════════════════
+
+const CargaMasivaUsuarios = {
+  TIPOS_VALIDOS: ["Alumno", "Docente", "Administrativo"],
+  _datos: [],
+  _errores: [],
+  _archivo: null,
+  _columnas: [],
+
+  abrirModal() {
+    this._resetState();
+    UI.abrirModal("modal-carga-masiva-usuarios");
+    this._initDropzone();
+  },
+
+  cerrarModal(event) {
+    if (event && event.target && event.target.id !== "modal-carga-masiva-usuarios") return;
+    UI.cerrarModal("modal-carga-masiva-usuarios");
+    this._resetState();
+  },
+
+  _resetState() {
+    this._datos = [];
+    this._errores = [];
+    this._archivo = null;
+    this._columnas = [];
+
+    document.getElementById("carga-usuarios-paso-1").style.display = "";
+    document.getElementById("carga-usuarios-paso-2").style.display = "none";
+    document.getElementById("carga-usuarios-progreso").style.display = "none";
+    document.getElementById("carga-usuarios-resultado").style.display = "none";
+    document.getElementById("carga-usuarios-errores").style.display = "none";
+    document.getElementById("carga-usuarios-archivo").value = "";
+
+    const dz = document.getElementById("carga-usuarios-dropzone");
+    if (dz) dz.classList.remove("drag-over");
+
+    const btnImportar = document.getElementById("btn-importar-usuarios");
+    if (btnImportar) {
+      btnImportar.disabled = false;
+      document.getElementById("btn-importar-usuarios-texto").style.display = "";
+      document.getElementById("btn-importar-usuarios-spinner").style.display = "none";
+    }
+    document.getElementById("carga-usuarios-progreso-bar").style.width = "0%";
+  },
+
+  volverPaso1() {
+    this._archivo = null;
+    this._datos = [];
+    this._errores = [];
+    this._columnas = [];
+    document.getElementById("carga-usuarios-paso-1").style.display = "";
+    document.getElementById("carga-usuarios-paso-2").style.display = "none";
+    document.getElementById("carga-usuarios-archivo").value = "";
+  },
+
+  descargarPlantilla() {
+    const wsData = [
+      ["nombre", "dni", "email", "tipo"],
+      ["Juan Pérez", "35123456", "", "Alumno"],
+      ["María García", "30987654", "mgarcia@correo.com", "Docente"],
+      ["Carlos López", "28111222", "clopez@correo.com", "Administrativo"],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = [
+      { wch: 28 },
+      { wch: 14 },
+      { wch: 28 },
+      { wch: 16 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Usuarios");
+    XLSX.writeFile(wb, "plantilla_usuarios_biblioteca.xlsx");
+  },
+
+  _initDropzone() {
+    const dz = document.getElementById("carga-usuarios-dropzone");
+    const input = document.getElementById("carga-usuarios-archivo");
+    if (!dz || !input) return;
+
+    const newDz = dz.cloneNode(true);
+    dz.parentNode.replaceChild(newDz, dz);
+
+    const dropzone = document.getElementById("carga-usuarios-dropzone");
+    const fileInput = document.getElementById("carga-usuarios-archivo");
+
+    dropzone.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) this._procesarArchivo(e.target.files[0]);
+    });
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      dropzone.classList.add("drag-over");
+    });
+    dropzone.addEventListener("dragleave", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      dropzone.classList.remove("drag-over");
+    });
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      dropzone.classList.remove("drag-over");
+      if (e.dataTransfer.files.length > 0) this._procesarArchivo(e.dataTransfer.files[0]);
+    });
+  },
+
+  _procesarArchivo(file) {
+    const extensiones = [".xlsx", ".xls", ".csv"];
+    const nombre = file.name.toLowerCase();
+    if (!extensiones.some(ext => nombre.endsWith(ext))) {
+      UI.toast("Formato no soportado. Usá archivos .xlsx, .xls o .csv", "danger");
+      return;
+    }
+    this._archivo = file;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const hoja = workbook.Sheets[workbook.SheetNames[0]];
+        const filas = XLSX.utils.sheet_to_json(hoja, { defval: "" });
+
+        if (filas.length === 0) {
+          UI.toast("El archivo está vacío o no tiene datos.", "danger");
+          return;
+        }
+        this._parsearFilas(filas);
+        this._mostrarPaso2();
+      } catch (err) {
+        console.error("Error al leer archivo:", err);
+        UI.toast("Error al procesar el archivo.", "danger");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  },
+
+  _parsearFilas(filas) {
+    this._datos = [];
+    this._errores = [];
+
+    filas.forEach((fila, idx) => {
+      const nombre = String(fila.nombre || fila.Nombre || fila.NOMBRE || "").trim();
+      const dni = String(fila.dni || fila.Dni || fila.DNI || "").trim();
+      const email = String(fila.email || fila.Email || fila.EMAIL || fila.correo || "").trim();
+      const tipoRaw = String(fila.tipo || fila.Tipo || fila.TIPO || "").trim();
+
+      if (!nombre) {
+        this._errores.push(`Fila ${idx + 2}: falta nombre`);
+        return;
+      }
+      if (!dni) {
+        this._errores.push(`Fila ${idx + 2}: falta DNI`);
+        return;
+      }
+
+      let tipo = "Alumno";
+      if (tipoRaw) {
+        const match = this.TIPOS_VALIDOS.find(t =>
+          t.toLowerCase() === tipoRaw.toLowerCase()
+        );
+        tipo = match || "Alumno";
+      }
+
+      this._datos.push({ nombre, dni, email, tipo });
+    });
+
+    this._columnas = ["nombre", "dni", "email", "tipo"];
+  },
+
+  _mostrarPaso2() {
+    document.getElementById("carga-usuarios-paso-1").style.display = "none";
+    document.getElementById("carga-usuarios-paso-2").style.display = "";
+
+    document.getElementById("carga-usuarios-nombre-archivo").textContent =
+      `${this._archivo.name} (${this._formatSize(this._archivo.size)})`;
+
+    const head = document.getElementById("carga-usuarios-previa-head");
+    const etiquetas = { nombre: "Nombre", dni: "DNI", email: "Email", tipo: "Tipo" };
+    head.innerHTML = `<tr>${this._columnas.map(col =>
+      `<th>${etiquetas[col] || col}</th>`
+    ).join("")}</tr>`;
+
+    const preview = this._datos.slice(0, 100);
+    const tbody = document.getElementById("carga-usuarios-previa-body");
+    tbody.innerHTML = preview.map(u => `<tr>${this._columnas.map(col => {
+      const val = u[col];
+      if (col === "tipo") {
+        const cls = val === "Administrativo" ? "badge-amarillo" : val === "Docente" ? "badge-azul" : "badge-verde";
+        return `<td><span class="badge ${cls}" style="font-size:0.7rem">${Utils._esc(val)}</span></td>`;
+      }
+      if (col === "email") return `<td>${val ? Utils._esc(val) : '<span style="color:var(--texto-muted)">—</span>'}</td>`;
+      return `<td>${Utils._esc(val)}</td>`;
+    }).join("")}</tr>`).join("");
+
+    if (this._datos.length > 100) {
+      tbody.innerHTML += `<tr><td colspan="${this._columnas.length}" style="text-align:center;padding:10px;color:var(--texto-muted);font-style:italic">... y ${this._datos.length - 100} filas más</td></tr>`;
+    }
+
+    document.getElementById("carga-usuarios-contador").textContent = this._datos.length;
+
+    const errBox = document.getElementById("carga-usuarios-errores");
+    if (this._errores.length > 0) {
+      errBox.style.display = "";
+      errBox.innerHTML = `<strong>${this._errores.length} fila${this._errores.length > 1 ? "s" : ""} ignorada${this._errores.length > 1 ? "s" : ""}:</strong><br>` +
+        this._errores.slice(0, 5).join("<br>") +
+        (this._errores.length > 5 ? `<br>... y ${this._errores.length - 5} más` : "");
+    } else {
+      errBox.style.display = "none";
+    }
+
+    document.getElementById("carga-usuarios-progreso").style.display = "none";
+    document.getElementById("carga-usuarios-resultado").style.display = "none";
+    document.getElementById("carga-usuarios-progreso-bar").style.width = "0%";
+
+    const btn = document.getElementById("btn-importar-usuarios");
+    btn.disabled = false;
+    document.getElementById("btn-importar-usuarios-texto").style.display = "";
+    document.getElementById("btn-importar-usuarios-texto").textContent = "Importar Usuarios →";
+    document.getElementById("btn-importar-usuarios-spinner").style.display = "none";
+  },
+
+  async importar() {
+    if (this._datos.length === 0) return;
+
+    const btn = document.getElementById("btn-importar-usuarios");
+    const progreso = document.getElementById("carga-usuarios-progreso");
+    const barra = document.getElementById("carga-usuarios-progreso-bar");
+    const label = document.getElementById("carga-usuarios-progreso-label");
+    const count = document.getElementById("carga-usuarios-progreso-count");
+    const resultado = document.getElementById("carga-usuarios-resultado");
+
+    btn.disabled = true;
+    document.getElementById("btn-importar-usuarios-texto").style.display = "none";
+    document.getElementById("btn-importar-usuarios-spinner").style.display = "";
+    progreso.style.display = "";
+    resultado.style.display = "none";
+
+    try {
+      const BATCH_SIZE = 500;
+      const total = this._datos.length;
+      let procesados = 0;
+      let conCuenta = 0;
+
+      for (let i = 0; i < total; i += BATCH_SIZE) {
+        const lote = this._datos.slice(i, i + BATCH_SIZE);
+        const batch = writeBatch(db);
+
+        for (const usuario of lote) {
+          const docRef = doc(collection(db, "usuarios"));
+          const docData = {
+            nombre: usuario.nombre,
+            tipo: usuario.tipo,
+            dni: usuario.dni,
+            createdAt: serverTimestamp()
+          };
+          if (usuario.email) {
+            docData.email = usuario.email;
+            conCuenta++;
+          }
+          batch.set(docRef, docData);
+        }
+
+        await batch.commit();
+        procesados += lote.length;
+
+        const pct = Math.round((procesados / total) * 100);
+        barra.style.width = pct + "%";
+        label.textContent = "Procesando...";
+        count.textContent = `${procesados}/${total}`;
+      }
+
+      AuditLog.registrar("crear", "usuario", null,
+        `Carga masiva: ${total} usuarios importados (${conCuenta} con cuenta) desde "${this._archivo?.name || "archivo"}"`);
+
+      label.textContent = "Completado";
+      barra.style.width = "100%";
+      document.getElementById("btn-importar-usuarios-texto").style.display = "";
+      document.getElementById("btn-importar-usuarios-texto").textContent = "Importado!";
+      document.getElementById("btn-importar-usuarios-spinner").style.display = "none";
+
+      resultado.style.display = "";
+      resultado.style.background = "var(--verde-claro)";
+      resultado.style.color = "var(--verde-oscuro)";
+      resultado.style.border = "1px solid var(--verde)";
+      resultado.innerHTML = `<strong>${total} usuarios</strong> importados correctamente.${conCuenta > 0 ? ` (${conCuenta} con email para cuenta de acceso)` : ""}`;
+
+      setTimeout(() => {
+        this.cerrarModal();
+        Usuarios.render();
+        UI.mostrarAlerta(`${total} usuarios importados correctamente.`, "success", 4000);
+      }, 1500);
+
+    } catch (error) {
+      console.error("Error en carga masiva de usuarios:", error);
+      label.textContent = "Error";
+      document.getElementById("btn-importar-usuarios-texto").style.display = "";
+      document.getElementById("btn-importar-usuarios-texto").textContent = "Reintentar →";
+      document.getElementById("btn-importar-usuarios-spinner").style.display = "none";
+      btn.disabled = false;
+
+      resultado.style.display = "";
+      resultado.style.background = "#FEF3F2";
+      resultado.style.color = "#A32D2D";
+      resultado.style.border = "1px solid #FECDC9";
+      resultado.innerHTML = `Error al importar: ${error.message || "Error desconocido"}. Intentá de nuevo.`;
+    }
+  },
+
+  _formatSize(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / 1048576).toFixed(1) + " MB";
+  }
+};
+
+window.CargaMasivaUsuarios = CargaMasivaUsuarios;
 
 // ══════════════════════════════════════════════════════════════
 //  EXPORTAR — Exportacion a PDF y XLSX
