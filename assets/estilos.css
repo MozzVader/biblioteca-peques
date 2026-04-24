@@ -341,10 +341,10 @@ header h1 {
   transform: rotate(20deg);
 }
 /* Show moon icon in light mode, sun icon in dark mode */
-.icon-moon { display: block; }
-.icon-sun  { display: none; }
-[data-theme="dark"] .icon-moon { display: none; }
-[data-theme="dark"] .icon-sun  { display: block; }
+.icon-moon { display: none; }
+.icon-sun  { display: block; }
+[data-theme="dark"] .icon-moon { display: block; }
+[data-theme="dark"] .icon-sun  { display: none; }
 
 /* ════════════════════════════════════════════
    LAYOUT
@@ -682,11 +682,11 @@ tr:hover td { background: var(--td-hover); }
    ════════════════════════════════════════════ */
 #toast-container {
   position: fixed;
-  top: calc(var(--header-h) + 12px);
+  bottom: 16px;
   right: 16px;
   z-index: 9999;
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   gap: 8px;
   pointer-events: none;
 }
@@ -799,12 +799,12 @@ tr:hover td { background: var(--td-hover); }
 .toast-info .toast-progress    { background: #3B82F6; }
 
 @keyframes toast-in {
-  from { opacity: 0; transform: translateX(40px) scale(0.95); }
-  to   { opacity: 1; transform: translateX(0) scale(1); }
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 @keyframes toast-out {
-  from { opacity: 1; transform: translateX(0) scale(1); }
-  to   { opacity: 0; transform: translateX(40px) scale(0.95); }
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(20px) scale(0.95); }
 }
 @keyframes toast-progress {
   from { width: 100%; }
