@@ -3249,7 +3249,7 @@ const Reportes = {
       this._renderRanking();
 
       // Render charts
-      this._renderCharts(prestamosSnap, usuariosMap, librosMap, hayFiltroFecha);
+      await this._renderCharts(prestamosSnap, usuariosMap, librosMap, hayFiltroFecha);
 
       // Init sortable headers for reportes table
       Utils.initSortableHeaders("tabla-reportes-wrapper", (column, direction) => {
@@ -3359,7 +3359,7 @@ const Reportes = {
     this._chartInstances = {};
   },
 
-  _renderCharts(prestamosSnap, usuariosMap, librosMap, hayFiltroFecha) {
+  async _renderCharts(prestamosSnap, usuariosMap, librosMap, hayFiltroFecha) {
     this._destroyCharts();
 
     const filtroDesde = document.getElementById("filtro-reportes-desde")?.value;
